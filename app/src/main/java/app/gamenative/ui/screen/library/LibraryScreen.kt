@@ -122,6 +122,9 @@ import app.gamenative.ui.screen.library.components.LibrarySearchBar
 import app.gamenative.ui.screen.library.components.LibrarySourceNotLoggedInSplash
 import app.gamenative.ui.screen.library.components.AeroHomeScreen
 import app.gamenative.ui.screen.library.components.MetroHomeScreen
+import app.gamenative.ui.screen.library.components.EmulatorConsoleScreen
+import app.gamenative.emulator.EmulatorLibrary
+import app.gamenative.emulator.EmulatorSelection
 import app.gamenative.ui.theme.AeroStyle
 import app.gamenative.ui.screen.library.components.AeroLibraryTabBar
 import app.gamenative.ui.screen.library.components.LibraryTabBar
@@ -1337,7 +1340,12 @@ private fun LibraryScreenContent(
                 } else {
                     // Library list (content scrolls behind tab bar)
                     if (PrefManager.aeroHome) {
-                        if (AeroStyle.state.collectAsStateWithLifecycle().value.metro) {
+                        val consoleId by EmulatorSelection.id.collectAsStateWithLifecycle()
+                        val consoleKnown = consoleId != null &&
+                            EmulatorLibrary.entries.collectAsStateWithLifecycle().value.any { it.id == consoleId }
+                        if (consoleKnown) {
+                            EmulatorConsoleScreen(entryId = consoleId!!, modifier = Modifier.fillMaxSize())
+                        } else if (AeroStyle.state.collectAsStateWithLifecycle().value.metro) {
                             MetroHomeScreen(
                             state = state,
                             listState = carouselListState,

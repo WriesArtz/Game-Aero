@@ -81,6 +81,10 @@ data class EmulatorEntry(
     /** RetroArch's retroarch.cfg, when it is not in the default place. */
     val configPath: String = "",
 ) {
+    /** What the pill in the top bar says: the console for RetroArch, the emulator's name for the others. */
+    val shortLabel: String
+        get() = if (kind == EmulatorKind.RETROARCH) SystemPresets.byId(systemId)?.label ?: name else name
+
     val label: String
         get() = SystemPresets.byId(systemId)?.let { if (kind == EmulatorKind.RETROARCH) "$name · ${it.label}" else name } ?: name
 }
@@ -98,6 +102,15 @@ data class EmulatorGame(
     /** Name of the emulator and system it belongs to. */
     val groupLabel: String,
 )
+
+/** Which console pill of the top bar is on, by emulator id; null while one of the usual categories is shown. */
+object EmulatorSelection {
+    private val _id = MutableStateFlow<String?>(null)
+    val id: StateFlow<String?> = _id.asStateFlow()
+    fun select(id: String?) {
+        _id.value = id
+    }
+}
 
 object EmulatorLibrary {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

@@ -94,7 +94,7 @@ internal fun EmulatorShelf(height: Dp, metro: Boolean = false, modifier: Modifie
 }
 
 @Composable
-private fun EmulatorTile(game: EmulatorGame, width: Dp, height: Dp, metro: Boolean) {
+internal fun EmulatorTile(game: EmulatorGame, width: Dp, height: Dp, metro: Boolean) {
     val context = LocalContext.current
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     val interaction = remember { MutableInteractionSource() }

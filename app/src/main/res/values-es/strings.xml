@@ -3580,4 +3580,15 @@
     <string name="emulator_not_installed">El emulador no está instalado o se negó a iniciar</string>
     <string name="emulator_no_path">No se pudo calcular la ruta de este juego; elige una carpeta del almacenamiento principal o de una tarjeta SD</string>
     <string name="emulator_no_core">Primero indica el core de RetroArch de este emulador</string>
+    <string name="look_ramune_hint">Agua cian, etiquetas de puntos azul marino y blanco, acento rojo</string>
+    <string name="look_aquaplaza_hint">Atrio de centro comercial Y2K: paneles cobalto con detalles dorados</string>
+    <string name="look_aquarium_hint">Verde y turquesa de pecera con acentos naranja pez dorado</string>
+    <string name="look_goldfish_hint">Plástico pastel transparente como un Game Boy translúcido</string>
+    <string name="look_hibiscus_hint">Mar tropical, rosa hibisco y cristal nacarado</string>
+    <string name="console_empty">Aún no hay juegos para esta consola</string>
+    <string name="look_ramune_hint">Botellas de ramune en agua turquesa: cristal cian con acentos rojos y azul marino</string>
+    <string name="look_aquaplaza_hint">El centro comercial web de los 2000: paneles azul Windows, mosaico brillante y fuente verde</string>
+    <string name="look_aquarium_hint">Una pecera iluminada: agua turquesa, plantas lima y acentos naranja pez dorado</string>
+    <string name="look_goldfish_hint">Plástico transparente y peces dorados: durazno, azul pálido y brillo arcoíris</string>
+    <string name="look_hibiscus_hint">Mar tropical con hibiscos rosa intenso, fresas pastel y destellos</string>
 </resources>

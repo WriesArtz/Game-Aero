@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,6 +81,8 @@ import app.gamenative.ui.component.LocalBarBlur
 import app.gamenative.ui.component.focusRing
 import app.gamenative.ui.component.themedBar
 import app.gamenative.ui.component.themedHeaderOrNull
+import app.gamenative.emulator.EmulatorLibrary
+import app.gamenative.emulator.EmulatorSelection
 import app.gamenative.ui.enums.LibraryTab
 import app.gamenative.ui.screen.support.SupportReplyWatcher
 import app.gamenative.ui.theme.PluviaTheme
@@ -723,8 +726,12 @@ fun AeroLibraryTabBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                LaunchedEffect(Unit) { EmulatorLibrary.ensureLoaded(context) }
+                val emulatorEntries by EmulatorLibrary.entries.collectAsStateWithLifecycle()
+                val emulatorGames by EmulatorLibrary.games.collectAsStateWithLifecycle()
+                val consoleId by EmulatorSelection.id.collectAsStateWithLifecycle()
                 tabs.forEach { tab ->
-                    val selected = tab == currentTab
+                    val selected = tab == currentTab && consoleId == null
                     Box(
                         modifier = Modifier
                             .clip(tabPillShape(20.dp))
@@ -743,8 +750,51 @@ fun AeroLibraryTabBar(
                             count = if (PluviaTheme.hideTabCounts) null else tabCounts[tab],
                             isSelected = selected,
                             showDot = showRecommendedDot,
-                            onClick = { onTabSelected(tab) },
+                            onClick = {
+                                EmulatorSelection.select(null)
+                                onTabSelected(tab)
+                            },
                             onPositioned = { _, _ -> },
+                        )
+                    }
+                }
+                // the consoles of the emulators, next to Steam, GOG and the rest
+                emulatorEntries.forEach { entry ->
+                    val count = emulatorGames.count { it.entryId == entry.id }
+                    if (count == 0) return@forEach
+                    val selected = consoleId == entry.id
+                    val interaction = remember { MutableInteractionSource() }
+                    val focused by interaction.collectIsFocusedAsState()
+                    Box(
+                        modifier = Modifier
+                            .heightIn(min = 40.dp)
+                            .clip(tabPillShape(20.dp))
+                            .then(
+                                if (selected) {
+                                    AeroStyle.state.value.selectionColor?.let { Modifier.background(it) }
+                                        ?: PluviaTheme.selectedTabFill?.let { Modifier.background(it) }
+                                        ?: Modifier.background(MaterialTheme.colorScheme.primary)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .focusRing(interaction, tabPillShape(20.dp), width = 2.dp)
+                            .selectable(
+                                selected = selected,
+                                interactionSource = interaction,
+                                indication = null,
+                                role = Role.Tab,
+                                onClick = { EmulatorSelection.select(entry.id) },
+                            )
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (PluviaTheme.hideTabCounts) entry.shortLabel else "${entry.shortLabel} ($count)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = barContentColor(if (selected) 1f else if (focused) 0.9f else 0.6f),
+                            maxLines = 1,
                         )
                     }
                 }

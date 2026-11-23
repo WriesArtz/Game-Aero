@@ -3706,4 +3706,15 @@
     <string name="emulator_not_installed">The emulator is not installed or refused to start</string>
     <string name="emulator_no_path">The path of this game could not be worked out; choose a folder on the main storage or an SD card</string>
     <string name="emulator_no_core">Set the RetroArch core for this emulator first</string>
+    <string name="look_ramune_hint">Cyan water, navy and white dotted labels, red accent</string>
+    <string name="look_aquaplaza_hint">Y2K mall atrium: cobalt kiosk panels with gold highlights</string>
+    <string name="look_aquarium_hint">Fish-tank teal and green with goldfish-orange accents</string>
+    <string name="look_goldfish_hint">Clear pastel plastic like a see-through Game Boy</string>
+    <string name="look_hibiscus_hint">Tropical sea, hibiscus pink and pearly glass</string>
+    <string name="console_empty">No games found for this console yet</string>
+    <string name="look_ramune_hint">Ramune bottles in sunlit turquoise water: cyan glass, red and navy accents</string>
+    <string name="look_aquaplaza_hint">The 2000s web mall: Windows-blue panels, glossy tile, green fountain accents</string>
+    <string name="look_aquarium_hint">A glowing fish tank: teal water, lime plants, goldfish-orange accents</string>
+    <string name="look_goldfish_hint">See-through plastic and goldfish: peach, pale blue and a rainbow sheen</string>
+    <string name="look_hibiscus_hint">Tropical sea with hot pink hibiscus, strawberry pastels and sparkles</string>
 </resources>
