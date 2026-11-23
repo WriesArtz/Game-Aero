@@ -94,6 +94,33 @@ object WallpaperSettings {
         _state.value = _state.value.copy(mode = mode)
     }
 
+    /**
+     * Makes a video that ships inside the app (under assets/) the video wallpaper and turns that mode on. The file
+     * is copied out of the assets once, because the player needs a real path.
+     */
+    suspend fun useBundled(context: Context, assetPath: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val dir = File(context.filesDir, "wallpapers")
+            dir.mkdirs()
+            val file = File(dir, "bundled-" + assetPath.substringAfterLast('/'))
+            if (!file.isFile || file.length() == 0L) {
+                context.assets.open(assetPath).use { src -> file.outputStream().use { out -> src.copyTo(out) } }
+            }
+            val previous = _state.value.videoPath
+            PrefManager.wallpaperVideoPath = file.absolutePath
+            PrefManager.wallpaperMode = WallpaperMode.VIDEO.ordinal
+            _state.value = WallpaperState(WallpaperMode.VIDEO, file.absolutePath)
+            // a picked video is replaced; a bundled one stays, it is only a copy of an asset
+            if (previous.isNotEmpty() && previous != file.absolutePath && !File(previous).name.startsWith("bundled-")) {
+                File(previous).delete()
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Timber.w(e, "Bundled wallpaper $assetPath could not be used")
+            Result.failure(e)
+        }
+    }
+
     /** Copies the video at [uri] into the app, makes it the video wallpaper and turns that mode on. */
     suspend fun importVideo(context: Context, uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         val dir = File(context.filesDir, "wallpapers")

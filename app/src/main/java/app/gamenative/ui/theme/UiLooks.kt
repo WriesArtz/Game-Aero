@@ -1,5 +1,6 @@
 package app.gamenative.ui.theme
 
+import android.content.Context
 import androidx.annotation.StringRes
 import app.gamenative.R
 import app.gamenative.theme.BundledThemes
@@ -17,6 +18,8 @@ class UiLook(
     val themeName: String,
     val wallpaper: WallpaperMode,
     val style: AeroStyleState,
+    /** A video under assets/ that plays as the wallpaper of this look; when null, [wallpaper] is used. */
+    val wallpaperAsset: String? = null,
 )
 
 object UiLooks {
@@ -70,16 +73,6 @@ object UiLooks {
             wallpaper = WallpaperMode.WATER,
             style = AeroStyleState(tint = argb(0xFFB6FF5A), selection = argb(0xFFB6FF5A), homeStyle = HOME_AERO),
         ),
-        UiLook("ramune", "Ramune", R.string.look_ramune_hint, "Ramune", WallpaperMode.WATER,
-            AeroStyleState(tint = argb(0xFFE8FAFF), selection = argb(0xFFEC3A45), homeStyle = HOME_AERO)),
-        UiLook("aquaplaza", "Aqua Plaza", R.string.look_aquaplaza_hint, "Aqua Plaza", WallpaperMode.OFF,
-            AeroStyleState(opacity = 90, outline = 110, selection = argb(0xFFFFC93A), homeStyle = HOME_AERO)),
-        UiLook("aquarium", "Aquarium", R.string.look_aquarium_hint, "Aquarium", WallpaperMode.BUBBLES,
-            AeroStyleState(selection = argb(0xFFFF8A2A), homeStyle = HOME_AERO)),
-        UiLook("goldfish", "Goldfish Y2K", R.string.look_goldfish_hint, "Goldfish Y2K", WallpaperMode.AURORA,
-            AeroStyleState(opacity = 80, gloss = 130, outline = 140, selection = argb(0xFFFF9A4D), homeStyle = HOME_AERO)),
-        UiLook("hibiscus", "Hibiscus Sea", R.string.look_hibiscus_hint, "Hibiscus Sea", WallpaperMode.WATER,
-            AeroStyleState(tint = argb(0xFFFFE6F2), selection = argb(0xFFFF4FA0), homeStyle = HOME_AERO)),
         UiLook(
             id = "ramune",
             name = "Ramune",
@@ -87,6 +80,7 @@ object UiLooks {
             themeName = "Ramune",
             wallpaper = WallpaperMode.WATER,
             style = AeroStyleState(tint = argb(0xFFE6F9FF), selection = argb(0xFFE8352B), homeStyle = HOME_AERO),
+            wallpaperAsset = "wallpapers/ramune.mp4",
         ),
         UiLook(
             id = "aquaplaza",
@@ -95,6 +89,7 @@ object UiLooks {
             themeName = "Aqua Plaza",
             wallpaper = WallpaperMode.OFF,
             style = AeroStyleState(opacity = 90, gloss = 110, selection = argb(0xFF2F86E8), homeStyle = HOME_AERO),
+            wallpaperAsset = "wallpapers/aquaplaza.mp4",
         ),
         UiLook(
             id = "aquarium",
@@ -103,6 +98,7 @@ object UiLooks {
             themeName = "Aquarium",
             wallpaper = WallpaperMode.BUBBLES,
             style = AeroStyleState(selection = argb(0xFFFF8A24), homeStyle = HOME_AERO),
+            wallpaperAsset = "wallpapers/aquarium.mp4",
         ),
         UiLook(
             id = "goldfish",
@@ -111,6 +107,7 @@ object UiLooks {
             themeName = "Goldfish Y2K",
             wallpaper = WallpaperMode.AURORA,
             style = AeroStyleState(opacity = 70, gloss = 150, outline = 130, tint = argb(0xFFFFE6D6), selection = argb(0xFFFF8B5C), homeStyle = HOME_AERO),
+            wallpaperAsset = "wallpapers/goldfish.mp4",
         ),
         UiLook(
             id = "hibiscus",
@@ -119,18 +116,23 @@ object UiLooks {
             themeName = "Hibiscus",
             wallpaper = WallpaperMode.WATER,
             style = AeroStyleState(tint = argb(0xFFFFE0EF), selection = argb(0xFFFF4F9A), homeStyle = HOME_AERO),
+            wallpaperAsset = "wallpapers/hibiscus.mp4",
         ),
     )
 
     /** Installs and enables the look's theme, then sets the dashboard, the glass and the wallpaper. */
-    suspend fun apply(look: UiLook): Result<Unit> {
+    suspend fun apply(context: Context, look: UiLook): Result<Unit> {
         val theme = BundledThemes.all.firstOrNull { it.name == look.themeName }
             ?: return Result.failure(IllegalStateException("bundled theme ${look.themeName} is missing"))
         val installed = ThemeManager.installBundled(theme)
         // the person's UI scale stays as it is: it depends on the screen, not on the look
         AeroStyle.update { look.style.copy(uiScale = it.uiScale) }
         app.gamenative.PrefManager.aeroHome = true
-        WallpaperSettings.setMode(look.wallpaper)
+        val asset = look.wallpaperAsset
+        if (asset == null || WallpaperSettings.useBundled(context, asset).isFailure) {
+            // no bundled video, or it could not be copied: the live wallpaper of the look instead
+            WallpaperSettings.setMode(look.wallpaper)
+        }
         return installed.map { }
     }
 }

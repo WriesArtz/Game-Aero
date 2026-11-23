@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +49,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun ThemeStyleTab(onMessage: (String) -> Unit, onWallpaper: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     var busyLook by remember { mutableStateOf<String?>(null) }
     var classic by remember { mutableStateOf(!PrefManager.aeroHome) }
@@ -80,7 +82,7 @@ internal fun ThemeStyleTab(onMessage: (String) -> Unit, onWallpaper: () -> Unit)
                         onClick = {
                             busyLook = look.id
                             scope.launch {
-                                UiLooks.apply(look)
+                                UiLooks.apply(context, look)
                                     .onSuccess {
                                         classic = false
                                         safeZone = PrefManager.safeZonePercent.toFloat()
