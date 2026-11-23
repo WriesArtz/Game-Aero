@@ -467,6 +467,26 @@ object ThemeManager {
         }
     }
 
+    /**
+     * Installs a theme that ships with the app (see [BundledThemes]) and turns it on. Installing it again replaces
+     * its files with the bundled ones; the options picked for it are kept.
+     */
+    suspend fun installBundled(theme: BundledTheme): Result<InstalledTheme> = op("installBundled") {
+        val work = newWorkDir()
+        try {
+            for ((fileName, content) in theme.files) File(work, fileName).writeText(content)
+            val installed = installFolder(work, theme.name, enable = true, store = null)
+            if (installed.enabled) {
+                installed
+            } else {
+                setEnabled(installed.id, true)
+                _themes.value.first { it.id == installed.id }
+            }
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
     suspend fun storeList(query: String, page: Int): Result<List<StoreTheme>> = op("storeList") {
         ThemeStoreClient.list(query, page)
     }

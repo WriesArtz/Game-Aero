@@ -13,6 +13,20 @@ import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import com.skydoves.landscapist.ImageOptions
+import com.skydoves.landscapist.coil.CoilImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.gamenative.ui.theme.AeroStyle
 import app.gamenative.theme.ThemeReflection
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -1151,7 +1165,35 @@ private fun LibraryShelf(
                         }
                     }
                 }
-                if (layout.showTitle) {
+                if (PrefManager.aeroHome) {
+                    // Console dashboard: the current game's title on a glass plate above the row, centered.
+                    val plateItem = state.appInfoList.getOrNull(currentIndex.value.coerceAtLeast(0))
+                    val plateTitle = when {
+                        plateItem == null -> ""
+                        plateItem.isRecTeaser -> stringResource(R.string.rec_teaser_title)
+                        else -> plateItem.name
+                    }
+                    val plateLogo = plateItem
+                        ?.takeIf { it.gameSource == GameSource.STEAM && !it.isRecTeaser }
+                        ?.let { "https://shared.steamstatic.com/store_item_assets/steam/apps/${it.gameId}/logo.png" }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset(y = maxOf(layout.rowTop - 140.dp, 64.dp)),
+                    ) {
+                        AeroTitlePlate(title = plateTitle, logoUrl = plateLogo)
+                    }
+                    // a row of wide cards under the covers when the screen has room for it
+                    val cardsTop = layout.rowTop + layout.tileHeight + 40.dp
+                    if (cardsTop + 104.dp < LocalConfiguration.current.screenHeightDp.dp - 56.dp) {
+                        Box(modifier = Modifier.fillMaxWidth().offset(y = cardsTop)) {
+                            AeroCardsRow(
+                                items = state.appInfoList.filter { !it.isRecTeaser && it.headerImageUrl.isNotEmpty() }.take(4),
+                                onNavigate = onNavigate,
+                            )
+                        }
+                    }
+                } else if (layout.showTitle) {
                     Box(modifier = Modifier.fillMaxWidth().offset(y = layout.labelTop)) {
                         ShelfLabel(
                             state = state,
@@ -1215,6 +1257,109 @@ private fun Modifier.shelfFocusPop(
 
 private const val PLAYTIME_LOAD_TRIES = 20
 private const val PLAYTIME_RETRY_MS = 3_000L
+
+/** Wide glass cards with the artwork and name of a few games, each opening that game. */
+@Composable
+internal fun AeroCardsRow(items: List<LibraryItem>, onNavigate: (String) -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    val style by AeroStyle.state.collectAsStateWithLifecycle()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        items.forEach { item ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(104.dp)
+                    .clip(shape)
+                    .border(BorderStroke(1.dp, style.rim()), shape)
+                    .clickable { onNavigate(item.appId) },
+            ) {
+                CoilImage(
+                    imageModel = { item.headerImageUrl },
+                    modifier = Modifier.fillMaxSize(),
+                    imageOptions = ImageOptions(contentScale = ContentScale.Crop, contentDescription = null),
+                    loading = {},
+                    failure = {},
+                )
+                // a clear sheen on top and a soft shade under the name
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.White.copy(alpha = 0.18f), Color.Transparent, Color.Black.copy(alpha = 0.55f)),
+                            ),
+                        ),
+                )
+                Text(
+                    text = item.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = style.textColor(Color.White),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/** The current game's name on a clear glass plate: a bright top edge, a thin rim and no blur haze. */
+@Composable
+internal fun AeroTitlePlate(title: String, logoUrl: String?, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(24.dp)
+    val style by AeroStyle.state.collectAsStateWithLifecycle()
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Crossfade(targetState = title, label = "aeroTitle") { shown ->
+            if (shown.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 620.dp)
+                        .clip(shape)
+                        .background(style.fill())
+                        .border(BorderStroke(1.dp, style.rim()), shape)
+                        .padding(horizontal = 32.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val nameText: @Composable () -> Unit = {
+                        Text(
+                            text = shown,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                shadow = Shadow(color = Color.Black.copy(alpha = 0.45f), offset = Offset(0f, 2f), blurRadius = 8f),
+                            ),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = style.textColor(Color.White),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    if (logoUrl != null) {
+                        // the game's own logo when Steam has one; its name when not
+                        CoilImage(
+                            imageModel = { logoUrl },
+                            modifier = Modifier
+                                .height(84.dp)
+                                .widthIn(min = 120.dp, max = 460.dp),
+                            imageOptions = ImageOptions(contentScale = ContentScale.Fit, contentDescription = shown),
+                            loading = {},
+                            failure = { nameText() },
+                        )
+                    } else {
+                        nameText()
+                    }
+                }
+            }
+        }
+    }
+}
 
 /** Steam playtime by app id for the shelf's status line, fetched when a shelf is shown; null until it arrives. */
 private object ShelfPlaytime {

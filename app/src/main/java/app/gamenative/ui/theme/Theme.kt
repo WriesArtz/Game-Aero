@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
@@ -38,7 +39,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.view.WindowCompat
 import app.gamenative.theme.HomeRowGeometry
 import app.gamenative.theme.ThemeBar
@@ -232,6 +235,9 @@ private val DarkPluviaColors = PluviaColors(
 
 private val LocalPluviaColors = staticCompositionLocalOf { DarkPluviaColors }
 private val LocalThemeSpec = staticCompositionLocalOf { ThemeSpec.EMPTY }
+
+/** True while an animated wallpaper is drawn behind the main screens, which then leave their background clear. */
+internal val LocalWallpaperActive = staticCompositionLocalOf { false }
 
 /**
  * Material3 dark color scheme using Pluvia colors.
@@ -620,9 +626,19 @@ fun PluviaTheme(
         insetsController.isAppearanceLightNavigationBars = lightBars
     }
 
+    val wallpaper by WallpaperSettings.state.collectAsStateWithLifecycle()
+    // The UI size the person picked: everything in dp and sp grows or shrinks with it.
+    val aeroStyle by AeroStyle.state.collectAsStateWithLifecycle()
+    val baseDensity = LocalDensity.current
+    val scaledDensity = remember(baseDensity, aeroStyle.uiScale) {
+        Density(baseDensity.density * aeroStyle.uiScale / 100f, baseDensity.fontScale)
+    }
+
     CompositionLocalProvider(
+        LocalDensity provides scaledDensity,
         LocalPluviaColors provides pluviaColors,
         LocalThemeSpec provides spec,
+        LocalWallpaperActive provides wallpaper.active,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -654,11 +670,12 @@ object PluviaTheme {
         @ReadOnlyComposable
         get() = LocalThemeSpec.current.cornerRadiusDp?.coerceAtLeast(0f)?.dp
 
-    /** True when the theme draws an image or gradient behind the main screens. */
+    /** True when the theme draws an image or gradient, or an animated wallpaper is on, behind the main screens. */
     val hasBackdrop: Boolean
         @Composable
         @ReadOnlyComposable
-        get() = LocalThemeSpec.current.let { it.backgroundImage != null || it.backgroundGradient != null }
+        get() = LocalWallpaperActive.current ||
+            LocalThemeSpec.current.let { it.backgroundImage != null || it.backgroundGradient != null }
 
     /** Root color of a main screen: transparent when a theme backdrop is drawn behind it. */
     val screenBackground: Color

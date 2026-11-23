@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Logout
@@ -545,7 +546,17 @@ fun SettingsGroupInterface(
         )
 
         // Unified visual icon picker (affects app and notification icons)
-        var selectedVariant by rememberSaveable { mutableStateOf(if (PrefManager.useAltLauncherIcon || PrefManager.useAltNotificationIcon) 1 else 0) }
+        var selectedVariant by rememberSaveable { mutableStateOf(PrefManager.launcherIconVariant) }
+
+        // the glass, the safe zone and the dashboard moved to the Style tab of the themes
+        var showEmulators by rememberSaveable { mutableStateOf(false) }
+        if (showEmulators) EmulatorsDialog(onDismiss = { showEmulators = false })
+        SettingsMenuLink(
+            colors = settingsTileColorsAlt(),
+            title = { Text(text = stringResource(R.string.emulators_title)) },
+            subtitle = { Text(text = stringResource(R.string.emulators_hint)) },
+            onClick = { showEmulators = true },
+        )
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(
                 text = stringResource(R.string.settings_interface_icon_style),
@@ -562,7 +573,8 @@ fun SettingsGroupInterface(
                         selectedVariant = 0
                         PrefManager.useAltLauncherIcon = false
                         PrefManager.useAltNotificationIcon = false
-                        IconSwitcher.applyLauncherIcon(context, false)
+                        PrefManager.launcherIconVariant = 0
+                        IconSwitcher.applyLauncherVariant(context, 0)
                     },
                 )
                 IconVariantCard(
@@ -574,7 +586,21 @@ fun SettingsGroupInterface(
                         selectedVariant = 1
                         PrefManager.useAltLauncherIcon = true
                         PrefManager.useAltNotificationIcon = true
-                        IconSwitcher.applyLauncherIcon(context, true)
+                        PrefManager.launcherIconVariant = 1
+                        IconSwitcher.applyLauncherVariant(context, 1)
+                    },
+                )
+                IconVariantCard(
+                    label = stringResource(R.string.settings_interface_icon_aero),
+                    launcherIconRes = R.mipmap.ic_launcher_aero,
+                    notificationIconRes = R.drawable.ic_notification,
+                    selected = selectedVariant == 2,
+                    onClick = {
+                        selectedVariant = 2
+                        PrefManager.useAltLauncherIcon = false
+                        PrefManager.useAltNotificationIcon = false
+                        PrefManager.launcherIconVariant = 2
+                        IconSwitcher.applyLauncherVariant(context, 2)
                     },
                 )
             }

@@ -398,7 +398,8 @@ fun ThemeBackdrop(modifier: Modifier = Modifier) {
     val spec = PluviaTheme.spec
     val gradient = spec.backgroundGradient
     val imagePath = spec.backgroundImage
-    if (gradient == null && imagePath == null) return
+    val wallpaperActive = LocalWallpaperActive.current
+    if (gradient == null && imagePath == null && !wallpaperActive) return
     val base = MaterialTheme.colorScheme.background
 
     Box(
@@ -423,6 +424,8 @@ fun ThemeBackdrop(modifier: Modifier = Modifier) {
                 )
             }
         }
+        // the animated wallpaper replaces whatever still image or gradient the theme draws
+        if (wallpaperActive) AnimatedWallpaper()
     }
 }
 

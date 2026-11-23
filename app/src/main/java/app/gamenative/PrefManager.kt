@@ -1053,6 +1053,22 @@ object PrefManager {
 
     fun clearThemedLibraryLayout() = removePref(THEMED_LIBRARY_LAYOUT)
 
+    /** Animated wallpaper behind the main screens; the value is the ordinal of `WallpaperMode` (0 = off). */
+    private val WALLPAPER_MODE = intPreferencesKey("wallpaper_mode")
+    var wallpaperMode: Int
+        get() = getPref(WALLPAPER_MODE, 0)
+        set(value) {
+            setPref(WALLPAPER_MODE, value)
+        }
+
+    /** Absolute path of the video copied into the app for the video wallpaper; empty when none was picked. */
+    private val WALLPAPER_VIDEO_PATH = stringPreferencesKey("wallpaper_video_path")
+    var wallpaperVideoPath: String
+        get() = getPref(WALLPAPER_VIDEO_PATH, "")
+        set(value) {
+            setPref(WALLPAPER_VIDEO_PATH, value)
+        }
+
     private val LIBRARY_FILTER = intPreferencesKey("library_filter")
     var libraryFilter: EnumSet<AppFilter>
         get() {
@@ -1910,6 +1926,66 @@ object PrefManager {
     var useAltNotificationIcon: Boolean
         get() = getPref(USE_ALT_NOTIFICATION_ICON, false)
         set(value) = setPref(USE_ALT_NOTIFICATION_ICON, value)
+
+    // Launcher icon variant: 0 default, 1 alternate, 2 Frutiger Aero bubble
+    private val LAUNCHER_ICON_VARIANT = intPreferencesKey("launcher_icon_variant")
+    var launcherIconVariant: Int
+        get() = getPref(LAUNCHER_ICON_VARIANT, if (useAltLauncherIcon) 1 else 0)
+        set(value) = setPref(LAUNCHER_ICON_VARIANT, value)
+
+    // Console-dashboard look of the library's top bar: glass pills for the actions, the categories and the clock
+    private val AERO_HOME = booleanPreferencesKey("aero_home")
+    var aeroHome: Boolean
+        get() = getPref(AERO_HOME, true)
+        set(value) = setPref(AERO_HOME, value)
+
+    // Which dashboard the library draws when aeroHome is on: 0 = glass covers (Frutiger Aero), 1 = flat Metro tiles
+    private val HOME_STYLE = intPreferencesKey("home_style")
+    var homeStyle: Int
+        get() = getPref(HOME_STYLE, 0)
+        set(value) = setPref(HOME_STYLE, value)
+
+    // Look of the dashboard glass (percentages; colors are ARGB ints, 0 = automatic) and the size of the whole UI
+    private val AERO_OPACITY = intPreferencesKey("aero_opacity")
+    var aeroOpacity: Int
+        get() = getPref(AERO_OPACITY, 100)
+        set(value) = setPref(AERO_OPACITY, value)
+
+    private val AERO_GLOSS = intPreferencesKey("aero_gloss")
+    var aeroGloss: Int
+        get() = getPref(AERO_GLOSS, 100)
+        set(value) = setPref(AERO_GLOSS, value)
+
+    private val AERO_OUTLINE = intPreferencesKey("aero_outline")
+    var aeroOutline: Int
+        get() = getPref(AERO_OUTLINE, 100)
+        set(value) = setPref(AERO_OUTLINE, value)
+
+    private val AERO_TINT = intPreferencesKey("aero_tint")
+    var aeroTint: Int
+        get() = getPref(AERO_TINT, 0)
+        set(value) = setPref(AERO_TINT, value)
+
+    private val AERO_TEXT = intPreferencesKey("aero_text")
+    var aeroText: Int
+        get() = getPref(AERO_TEXT, 0)
+        set(value) = setPref(AERO_TEXT, value)
+
+    private val AERO_SELECTION = intPreferencesKey("aero_selection")
+    var aeroSelection: Int
+        get() = getPref(AERO_SELECTION, 0)
+        set(value) = setPref(AERO_SELECTION, value)
+
+    private val UI_SCALE_PERCENT = intPreferencesKey("ui_scale_percent")
+    var uiScalePercent: Int
+        get() = getPref(UI_SCALE_PERCENT, 100).coerceIn(70, 130)
+        set(value) = setPref(UI_SCALE_PERCENT, value.coerceIn(70, 130))
+
+    // Side margin of the library screens, in percent of the screen width (0 = edge to edge)
+    private val SAFE_ZONE_PERCENT = intPreferencesKey("safe_zone_percent")
+    var safeZonePercent: Int
+        get() = getPref(SAFE_ZONE_PERCENT, 0).coerceIn(0, 15)
+        set(value) = setPref(SAFE_ZONE_PERCENT, value.coerceIn(0, 15))
 
     // App language preference (empty string means system default)
     private val APP_LANGUAGE = stringPreferencesKey("app_language")

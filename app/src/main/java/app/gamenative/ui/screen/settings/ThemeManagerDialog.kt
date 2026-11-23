@@ -145,7 +145,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class ThemeTab { INSTALLED, COMMUNITY, STEAM_DECK, SOUNDS }
+private enum class ThemeTab { INSTALLED, STYLE, COMMUNITY, STEAM_DECK, SOUNDS }
 
 private const val STARTER_THEME_FILE_NAME = "gamenative-starter-theme.zip"
 
@@ -222,6 +222,8 @@ fun ThemeManagerDialog(
     var shareTarget by remember { mutableStateOf<InstalledTheme?>(null) }
     var shareBlocked by remember { mutableStateOf<ShareBlocker?>(null) }
     var newThemeOpen by remember { mutableStateOf(false) }
+    var wallpaperOpen by remember { mutableStateOf(false) }
+    var bundledOpen by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<InstalledTheme?>(null) }
     var sharePickerOpen by remember { mutableStateOf(false) }
     var scrollTo by remember { mutableStateOf<String?>(null) }
@@ -473,6 +475,7 @@ fun ThemeManagerDialog(
                                     text = stringResource(
                                         when (entry) {
                                             ThemeTab.INSTALLED -> R.string.themes_tab_installed
+                                            ThemeTab.STYLE -> R.string.themes_tab_style
                                             ThemeTab.COMMUNITY -> R.string.themes_tab_community
                                             ThemeTab.STEAM_DECK -> R.string.themes_tab_steam_deck
                                             ThemeTab.SOUNDS -> R.string.themes_tab_sounds
@@ -500,6 +503,8 @@ fun ThemeManagerDialog(
                         focusRow = focusRow,
                         onRowFocused = { focusRow = null },
                         onNewTheme = { newThemeOpen = true },
+                        onInstallAero = { bundledOpen = true },
+                        onWallpaper = { wallpaperOpen = true },
                         onRename = { renameTarget = it },
                         onUpdate = { updateTheme(it) },
                         onImportZip = {
@@ -532,6 +537,11 @@ fun ThemeManagerDialog(
                                 imageLauncher.launch(arrayOf("image/*"))
                             }
                         },
+                    )
+
+                    ThemeTab.STYLE -> ThemeStyleTab(
+                        onMessage = { scope.launch { snackbarHostState.showSnackbar(it) } },
+                        onWallpaper = { wallpaperOpen = true },
                     )
 
                     ThemeTab.COMMUNITY -> CommunityThemesTab(
@@ -617,6 +627,20 @@ fun ThemeManagerDialog(
 
         shareBlocked?.let { blocker ->
             ShareBlockedDialog(blocker = blocker, onDismiss = { shareBlocked = null })
+        }
+
+        if (wallpaperOpen) {
+            WallpaperDialog(onDismiss = { wallpaperOpen = false })
+        }
+
+        if (bundledOpen) {
+            BundledThemesDialog(
+                onPick = { picked ->
+                    bundledOpen = false
+                    runBusy { installedText(ThemeManager.installBundled(picked)) }
+                },
+                onDismiss = { bundledOpen = false },
+            )
         }
 
         if (newThemeOpen) {
@@ -841,6 +865,8 @@ private fun InstalledThemesTab(
     focusRow: String?,
     onRowFocused: () -> Unit,
     onNewTheme: () -> Unit,
+    onInstallAero: () -> Unit,
+    onWallpaper: () -> Unit,
     onRename: (InstalledTheme) -> Unit,
     onUpdate: (String) -> Unit,
     onImportZip: () -> Unit,
@@ -883,6 +909,15 @@ private fun InstalledThemesTab(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(stringResource(R.string.themes_new_theme))
                 }
+                Button(
+                    onClick = onInstallAero,
+                    enabled = !busy,
+                    modifier = Modifier.focusOutline(CircleShape),
+                ) { Text(stringResource(R.string.themes_bundled_button)) }
+                Button(
+                    onClick = onWallpaper,
+                    modifier = Modifier.focusOutline(CircleShape),
+                ) { Text(stringResource(R.string.wallpaper_button)) }
                 Button(
                     onClick = onImportZip,
                     enabled = !busy,

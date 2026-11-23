@@ -1,0 +1,47 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- glass bubble -->
+  <path android:pathData="M54,27 A27,27 0 1,1 54,81 A27,27 0 1,1 54,27 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:centerX="54"
+          android:centerY="54"
+          android:gradientRadius="27"
+          android:type="radial">
+        <item android:offset="0" android:color="#10FFFFFF"/>
+        <item android:offset="0.72" android:color="#30FFFFFF"/>
+        <item android:offset="1" android:color="#88FFFFFF"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path
+      android:pathData="M54,27 A27,27 0 1,1 54,81 A27,27 0 1,1 54,27 Z"
+      android:strokeColor="#CCFFFFFF"
+      android:strokeWidth="1.6"
+      android:fillColor="#00000000"/>
+  <!-- lime bubble inside -->
+  <path android:pathData="M62,56 A9,9 0 1,1 62,74 A9,9 0 1,1 62,56 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="62"
+          android:startY="56"
+          android:endX="62"
+          android:endY="74"
+          android:type="linear">
+        <item android:offset="0" android:color="#CCD4FF78"/>
+        <item android:offset="1" android:color="#CC2FBF3A"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <!-- glossy highlight -->
+  <path
+      android:pathData="M37,45 C37,37 44,32 52,31 C46,35 43,41 42,49 Z"
+      android:fillColor="#E6FFFFFF"/>
+  <path
+      android:pathData="M68,70 C65,76 59,78 55,78 C61,77 66,74 70,67 Z"
+      android:fillColor="#77BFFFFF"/>
+</vector>

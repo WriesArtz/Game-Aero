@@ -120,6 +120,10 @@ import app.gamenative.ui.screen.library.components.RecommendationDisclosureDialo
 import app.gamenative.ui.screen.library.components.LibraryOptionsPanel
 import app.gamenative.ui.screen.library.components.LibrarySearchBar
 import app.gamenative.ui.screen.library.components.LibrarySourceNotLoggedInSplash
+import app.gamenative.ui.screen.library.components.AeroHomeScreen
+import app.gamenative.ui.screen.library.components.MetroHomeScreen
+import app.gamenative.ui.theme.AeroStyle
+import app.gamenative.ui.screen.library.components.AeroLibraryTabBar
 import app.gamenative.ui.screen.library.components.LibraryTabBar
 import app.gamenative.ui.screen.library.components.shelfHomeIndex
 import app.gamenative.ui.screen.library.components.shelfLeadsWithRecommendation
@@ -371,10 +375,15 @@ private fun LibraryScreenContent(
     var themedPaneType by remember(themed) {
         mutableStateOf(if (themed) PrefManager.themedLibraryLayout else PaneType.UNDECIDED)
     }
-    val currentPaneType = when {
-        !themed -> savedPaneType
-        themedPaneType != PaneType.UNDECIDED -> themedPaneType
-        else -> themeSpec.layout?.libraryLayout.toThemePaneType() ?: savedPaneType
+    // The console-dashboard home is its own screen built on the shelf's row, whatever layout was picked
+    val currentPaneType = if (PrefManager.aeroHome) {
+        PaneType.ROW
+    } else {
+        when {
+            !themed -> savedPaneType
+            themedPaneType != PaneType.UNDECIDED -> themedPaneType
+            else -> themeSpec.layout?.libraryLayout.toThemePaneType() ?: savedPaneType
+        }
     }
     // The Shelf keeps a sort of its own, recently played until one is picked there.
     val shelfShown = currentPaneType == PaneType.ROW
@@ -751,12 +760,17 @@ private fun LibraryScreenContent(
     // The detail (game) page deliberately does NOT use this — the hero image is meant
     // to bleed through the cutout, so AppScreenContent insets only the elements that
     // need to stay tappable (e.g. the back button) instead.
+    // The sides are the person's "safe zone" setting (Settings > Interface): a share of the screen width, 0 by
+    // default so the library runs edge to edge. Raise it if a camera cutout or rounded corner hides the tab bar.
+    val safeZoneSide = (LocalConfiguration.current.screenWidthDp * PrefManager.safeZonePercent / PrefManager.uiScalePercent.toFloat()).dp
     val safePaddingModifier = if (selectedLibraryItem == null) {
-        Modifier.windowInsetsPadding(
-            WindowInsets.statusBars
-                .union(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-        )
+        Modifier
+            .windowInsetsPadding(
+                WindowInsets.statusBars
+                    .union(WindowInsets.displayCutout)
+                    .only(WindowInsetsSides.Top),
+            )
+            .padding(horizontal = safeZoneSide)
     } else {
         Modifier
     }
@@ -1322,7 +1336,59 @@ private fun LibraryScreenContent(
                     }
                 } else {
                     // Library list (content scrolls behind tab bar)
-                    if (currentPaneType.isCarouselPane) {
+                    if (PrefManager.aeroHome) {
+                        if (AeroStyle.state.collectAsStateWithLifecycle().value.metro) {
+                            MetroHomeScreen(
+                            state = state,
+                            listState = carouselListState,
+                            onPageChange = onPageChange,
+                            onNavigate = { appId ->
+                                val item = state.appInfoList.find { it.appId == appId }
+                                if (item?.isRecTeaser == true) {
+                                    if (!item.isRecLoading && !recDisclosureShown) {
+                                        onRecTeaserTapped()
+                                    }
+                                } else {
+                                    lastFocusedAppId = appId
+                                    selectedAppId = appId
+                                    selectedLibraryItem = item
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize().barBlurSource(barBlur, zIndex = 1f),
+                            firstItemFocusRequester = carouselFocusRequester,
+                            focusTargetListIndex = currentCarouselFocusTargetIndex(),
+                            onFocusedIndexChanged = {
+                                if (it != currentCarouselFocusTargetIndex()) carouselFocusTargetListIndex = it
+                                onContentFocused(it)
+                            },
+                        )
+                        } else {
+                            AeroHomeScreen(
+                            state = state,
+                            listState = carouselListState,
+                            onPageChange = onPageChange,
+                            onNavigate = { appId ->
+                                val item = state.appInfoList.find { it.appId == appId }
+                                if (item?.isRecTeaser == true) {
+                                    if (!item.isRecLoading && !recDisclosureShown) {
+                                        onRecTeaserTapped()
+                                    }
+                                } else {
+                                    lastFocusedAppId = appId
+                                    selectedAppId = appId
+                                    selectedLibraryItem = item
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize().barBlurSource(barBlur, zIndex = 1f),
+                            firstItemFocusRequester = carouselFocusRequester,
+                            focusTargetListIndex = currentCarouselFocusTargetIndex(),
+                            onFocusedIndexChanged = {
+                                if (it != currentCarouselFocusTargetIndex()) carouselFocusTargetListIndex = it
+                                onContentFocused(it)
+                            },
+                        )
+                        }
+                    } else if (currentPaneType.isCarouselPane) {
                         LibraryCarouselPane(
                             state = state,
                             listState = carouselListState,
@@ -1411,6 +1477,45 @@ private fun LibraryScreenContent(
                     )
                 } else {
                     // Tab bar when not searching
+                    if (PrefManager.aeroHome) {
+                    AeroLibraryTabBar(
+                        currentTab = state.currentTab,
+                        tabs = state.visibleLibraryTabs,
+                        tabCounts = mapOf(
+                            LibraryTab.ALL to state.allCount,
+                            LibraryTab.FAVORITES to state.favoritesCount,
+                            LibraryTab.STEAM to state.steamCount,
+                            LibraryTab.GOG to state.gogCount,
+                            LibraryTab.EPIC to state.epicCount,
+                            LibraryTab.AMAZON to state.amazonCount,
+                            LibraryTab.LOCAL to state.localCount,
+                        ),
+                        onTabSelected = onTabChanged,
+                        onOptionsClick = { onOptionsPanelToggle(true) },
+                        onSearchClick = { onIsSearching(true) },
+                        onAddGameClick = onAddCustomGameClick,
+                        onMenuClick = { isSystemMenuOpen = true },
+                        onNavigateDownToGrid = {
+                            if (isListFocusable()) {
+                                requestContentFocusOrDefer()
+                            }
+                        },
+                        onPreviousTab = onPreviousTab,
+                        onNextTab = onNextTab,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                tabBarHasFocus = focusState.hasFocus
+                                // Cancel any deferred grid-focus so the retry loop can't pull focus
+                                // back off a tab-bar button the user just landed on.
+                                if (focusState.hasFocus) {
+                                    pendingGridFocusRequest = false
+                                    pendingCarouselFocusRequest = false
+                                }
+                            },
+                    )
+                    } else {
                     LibraryTabBar(
                         currentTab = state.currentTab,
                         tabs = state.visibleLibraryTabs,
@@ -1448,6 +1553,7 @@ private fun LibraryScreenContent(
                                 }
                             },
                     )
+                    }
                 }
             }
         } else {

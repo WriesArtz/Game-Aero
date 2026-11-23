@@ -60,7 +60,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
+import androidx.compose.ui.geometry.Size
+import androidx.compose.foundation.layout.widthIn
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.gamenative.PrefManager
+import app.gamenative.ui.theme.AeroStyle
 import app.gamenative.R
 import app.gamenative.ui.component.LocalBarBlur
 import app.gamenative.ui.component.focusRing
@@ -272,7 +286,7 @@ private fun CompactLibraryTabBar(
                     ) {
                         val count = if (PluviaTheme.hideTabCounts) null else tabCounts[tab]
                         val tabColor = when {
-                            isSelected -> PluviaTheme.onSelectedTab
+                            isSelected -> selectedTabContent()
                             isTabFocused -> MaterialTheme.colorScheme.primary
                             else -> barContentColor(0.7f)
                         }
@@ -341,9 +355,23 @@ private fun CompactLibraryTabBar(
 @Composable
 @ReadOnlyComposable
 private fun barContentColor(alpha: Float): Color {
-    val header = themedHeaderOrNull() ?: return MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
-    return header.contentColor.scaleAlpha(alpha)
+    val header = themedHeaderOrNull()
+    val base = if (header == null) {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+    } else {
+        header.contentColor.scaleAlpha(alpha)
+    }
+    return if (PrefManager.aeroHome) AeroStyle.state.value.textColor(base) else base
 }
+
+/** Text on the selected tab: readable on the chosen selection color when there is one. */
+@Composable
+private fun selectedTabContent(): Color =
+    if (PrefManager.aeroHome && AeroStyle.state.value.selectionColor != null) {
+        AeroStyle.state.value.onSelection(PluviaTheme.onSelectedTab)
+    } else {
+        PluviaTheme.onSelectedTab
+    }
 
 /** Tabs and the tab strip are pills; a theme corner radius keeps them fully round. */
 @Composable
@@ -600,6 +628,195 @@ private fun ExpandedLibraryTabBar(
     }
 }
 
+/**
+ * The library's top bar as a console dashboard: three crystal pills, the actions on the left, the categories in the
+ * middle and the clock, battery and menu on the right in a slanted piece. Same behavior as [LibraryTabBar].
+ */
+@Composable
+fun AeroLibraryTabBar(
+    currentTab: LibraryTab,
+    tabs: List<LibraryTab>,
+    tabCounts: Map<LibraryTab, Int>,
+    onTabSelected: (LibraryTab) -> Unit,
+    onOptionsClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    onAddGameClick: () -> Unit,
+    onMenuClick: () -> Unit,
+    onNavigateDownToGrid: () -> Unit,
+    onPreviousTab: () -> Unit = {},
+    onNextTab: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val clock by produceState("") {
+        while (true) {
+            value = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())
+            delay(20_000)
+        }
+    }
+    val battery by produceState(-1) {
+        while (true) {
+            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+            value = if (level >= 0 && scale > 0) level * 100 / scale else -1
+            delay(60_000)
+        }
+    }
+    val today = System.currentTimeMillis() / (24L * 60 * 60 * 1000)
+    var recommendedSeenDay by remember { mutableLongStateOf(PrefManager.recommendedTabSeenDay) }
+    LaunchedEffect(currentTab) { recommendedSeenDay = PrefManager.recommendedTabSeenDay }
+    val showRecommendedDot = recommendedSeenDay != today
+
+    val tabScroll = rememberScrollState()
+
+    Row(
+        modifier = modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .focusGroup()
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_DOWN -> { onNavigateDownToGrid(); true }
+                        KeyEvent.KEYCODE_BUTTON_L1 -> { onPreviousTab(); true }
+                        KeyEvent.KEYCODE_BUTTON_R1 -> { onNextTab(); true }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // actions
+        AeroPill(shape = RoundedCornerShape(50)) {
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (PrefManager.username.isNotBlank()) {
+                    Text(
+                        text = PrefManager.username,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = barContentColor(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .widthIn(max = 120.dp)
+                            .padding(start = 12.dp, end = 6.dp),
+                    )
+                }
+                IconActionButton(Icons.Default.Tune, stringResource(R.string.options), onOptionsClick)
+                IconActionButton(Icons.Default.Search, stringResource(R.string.search), onSearchClick)
+                IconActionButton(Icons.Default.Add, stringResource(R.string.action_add_game), onAddGameClick)
+            }
+        }
+
+        // categories
+        AeroPill(shape = RoundedCornerShape(50), modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier
+                    .horizontalScroll(tabScroll)
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                tabs.forEach { tab ->
+                    val selected = tab == currentTab
+                    Box(
+                        modifier = Modifier
+                            .clip(tabPillShape(20.dp))
+                            .then(
+                                if (selected) {
+                                    AeroStyle.state.value.selectionColor?.let { Modifier.background(it) }
+                                        ?: PluviaTheme.selectedTabFill?.let { Modifier.background(it) }
+                                        ?: Modifier.background(MaterialTheme.colorScheme.primary)
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    ) {
+                        TabItem(
+                            tab = tab,
+                            count = if (PluviaTheme.hideTabCounts) null else tabCounts[tab],
+                            isSelected = selected,
+                            showDot = showRecommendedDot,
+                            onClick = { onTabSelected(tab) },
+                            onPositioned = { _, _ -> },
+                        )
+                    }
+                }
+            }
+        }
+
+        // clock, battery and menu in a slanted piece
+        val slant = GenericShape { size: Size, _ ->
+            val skew = size.height * 0.35f
+            moveTo(skew, 0f)
+            lineTo(size.width, 0f)
+            lineTo(size.width - skew, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        AeroPill(shape = slant) {
+            Row(
+                modifier = Modifier.padding(start = 22.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (battery >= 0) {
+                    Text(
+                        text = "$battery%",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = barContentColor(0.85f),
+                        maxLines = 1,
+                    )
+                }
+                Text(
+                    text = clock,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = barContentColor(1f),
+                    maxLines = 1,
+                )
+                Box {
+                    IconActionButton(Icons.Default.Menu, stringResource(R.string.menu), onMenuClick)
+                    SupportUnreadDot(modifier = Modifier.align(Alignment.TopEnd))
+                }
+            }
+        }
+    }
+}
+
+/** A crystal capsule: a clear gradient with a bright top edge and a thin glass rim, no blur haze. */
+@Composable
+private fun AeroPill(
+    shape: Shape,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val style by AeroStyle.state.collectAsStateWithLifecycle()
+    // the Metro dashboard draws flat, square pieces in a solid color instead of glass
+    val drawn = if (style.metro) RoundedCornerShape(2.dp) else shape
+    Box(
+        modifier = modifier
+            .clip(drawn)
+            .then(
+                if (style.metro) {
+                    Modifier.background((style.selectionColor ?: Color(0xFF107C10)).copy(alpha = 0.9f))
+                } else {
+                    Modifier
+                        .background(style.fill())
+                        .border(BorderStroke(1.dp, style.rim()), drawn)
+                },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun IconActionButton(
     icon: ImageVector,
@@ -736,7 +953,7 @@ private fun TabItem(
                     isSelected = isSelected,
                     showDot = showDot,
                     tint = when {
-                        isSelected -> PluviaTheme.onSelectedTab
+                        isSelected -> selectedTabContent()
                         else -> barContentColor(textAlpha)
                     },
                     size = 20.dp,
@@ -748,7 +965,7 @@ private fun TabItem(
                         fontWeight = if (isSelected) PluviaTheme.selectedWeight(FontWeight.Bold) else FontWeight.Medium,
                         maxLines = 1,
                         color = when {
-                            isSelected -> PluviaTheme.onSelectedTab
+                            isSelected -> selectedTabContent()
                             else -> barContentColor(textAlpha)
                         },
                         modifier = Modifier.padding(start = 4.dp),
@@ -763,7 +980,7 @@ private fun TabItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = when {
-                    isSelected -> PluviaTheme.onSelectedTab
+                    isSelected -> selectedTabContent()
                     else -> barContentColor(textAlpha)
                 },
                 textAlign = TextAlign.Center,
