@@ -85,6 +85,38 @@ object CoverArt {
         }
     }
 
+    /** The address of a game's logo from SteamGridDB, for when the store has none; null without a key or a logo. */
+    suspend fun logoUrl(context: Context, item: LibraryItem): String? {
+        val key = PrefManager.steamGridDbKey.trim()
+        if (key.isEmpty() || item.isRecTeaser) return null
+        ensureLoaded(context)
+        val cacheKey = "logo_${item.appId}"
+        synchronized(this) { cache[cacheKey] }?.let { return it.ifEmpty { null } }
+        return withContext(Dispatchers.IO) {
+            gate.withPermit {
+                try {
+                    val url = if (item.gameSource == GameSource.STEAM && item.gameId > 0) {
+                        firstLogo("$API/logos/steam/${item.gameId}", key)
+                    } else {
+                        val search = "$API/search/autocomplete".toHttpUrl().newBuilder().addPathSegment(item.name).build()
+                        firstId(search.toString(), key)?.let { firstLogo("$API/logos/game/$it", key) }
+                    }
+                    remember(cacheKey, url ?: "")
+                    url
+                } catch (e: Exception) {
+                    Timber.d(e, "SteamGridDB logo lookup failed for ${item.name}")
+                    null
+                }
+            }
+        }
+    }
+
+    private fun firstLogo(base: String, key: String): String? {
+        val url = base.toHttpUrl().newBuilder().addQueryParameter("types", "static").build().toString()
+        val data = get(url, key).optJSONArray("data") ?: return null
+        return if (data.length() > 0) data.getJSONObject(0).optString("url").ifEmpty { null } else null
+    }
+
     private fun get(url: String, key: String): JSONObject {
         val request = Request.Builder().url(url).header("Authorization", "Bearer $key").build()
         Net.http.newCall(request).execute().use { response ->

@@ -1313,7 +1313,14 @@ internal fun AeroCardsRow(items: List<LibraryItem>, onNavigate: (String) -> Unit
 
 /** The current game's name on a clear glass plate: a bright top edge, a thin rim and no blur haze. */
 @Composable
-internal fun AeroTitlePlate(title: String, logoUrl: String?, modifier: Modifier = Modifier) {
+internal fun AeroTitlePlate(
+    title: String,
+    logoUrl: String?,
+    modifier: Modifier = Modifier,
+    logoHeight: Dp = 96.dp,
+    /** A second address for the logo, tried when the first has none. */
+    altLogoUrl: String? = null,
+) {
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Crossfade(targetState = title, label = "aeroTitle") { shown ->
@@ -1321,15 +1328,16 @@ internal fun AeroTitlePlate(title: String, logoUrl: String?, modifier: Modifier 
                 Box(
                     modifier = Modifier
                         // the logo floats over the wallpaper, with no frame, like a console dashboard's title
+                        .height(logoHeight)
                         .widthIn(max = 620.dp)
-                        .padding(horizontal = 32.dp, vertical = 4.dp),
+                        .padding(horizontal = 32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     val nameText: @Composable () -> Unit = {
                         Text(
                             text = shown,
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                shadow = Shadow(color = Color.Black.copy(alpha = 0.45f), offset = Offset(0f, 2f), blurRadius = 8f),
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                shadow = Shadow(color = Color.Black.copy(alpha = 0.55f), offset = Offset(0f, 2f), blurRadius = 10f),
                             ),
                             fontWeight = FontWeight.ExtraBold,
                             color = style.textColor(Color.White),
@@ -1338,16 +1346,24 @@ internal fun AeroTitlePlate(title: String, logoUrl: String?, modifier: Modifier 
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    if (logoUrl != null) {
-                        // the game's own logo when Steam has one; its name when not
+                    var useAlt by remember(shown, logoUrl) { mutableStateOf(logoUrl == null) }
+                    val url = if (useAlt) altLogoUrl else logoUrl
+                    if (url != null) {
+                        // the game's own logo when there is one; its name when not
                         CoilImage(
-                            imageModel = { logoUrl },
+                            imageModel = { url },
                             modifier = Modifier
-                                .height(96.dp)
+                                .height(logoHeight)
                                 .widthIn(min = 120.dp, max = 520.dp),
                             imageOptions = ImageOptions(contentScale = ContentScale.Fit, contentDescription = shown),
                             loading = {},
-                            failure = { nameText() },
+                            failure = {
+                                if (!useAlt && altLogoUrl != null) {
+                                    LaunchedEffect(Unit) { useAlt = true }
+                                } else {
+                                    nameText()
+                                }
+                            },
                         )
                     } else {
                         nameText()

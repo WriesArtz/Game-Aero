@@ -99,7 +99,7 @@ internal fun EmulatorTile(game: EmulatorGame, width: Dp, height: Dp, metro: Bool
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(if (metro) 2.dp else 16.dp)
+    val shape = RoundedCornerShape(if (metro) 2.dp else minOf(width, height) * 0.14f)
     val ring = style.selectionColor ?: Color(0xFFE8FFFF)
     val failure = stringResource(R.string.emulator_launch_failed)
     val notInstalled = stringResource(R.string.emulator_not_installed)
@@ -125,7 +125,14 @@ internal fun EmulatorTile(game: EmulatorGame, width: Dp, height: Dp, metro: Bool
                 if (message != null) Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             }
             .border(
-                BorderStroke(if (focused) 3.dp else 1.dp, if (focused) ring else Color.White.copy(alpha = 0.35f)),
+                if (metro) {
+                    BorderStroke(if (focused) 3.dp else 1.dp, if (focused) ring else Color.White.copy(alpha = 0.35f))
+                } else {
+                    BorderStroke(
+                        if (focused) 3.dp else 1.5.dp,
+                        Brush.verticalGradient(listOf(Color.White, Color(0xFF5FE6FF).copy(alpha = if (focused) 1f else 0.7f))),
+                    )
+                },
                 shape,
             ),
         contentAlignment = Alignment.Center,

@@ -675,7 +675,7 @@ fun AeroLibraryTabBar(
 
     Row(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .focusGroup()
             .onPreviewKeyEvent { keyEvent ->
                 if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
@@ -695,7 +695,7 @@ fun AeroLibraryTabBar(
         // actions
         AeroPill(shape = RoundedCornerShape(50)) {
             Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -711,9 +711,9 @@ fun AeroLibraryTabBar(
                             .padding(start = 12.dp, end = 6.dp),
                     )
                 }
-                IconActionButton(Icons.Default.Tune, stringResource(R.string.options), onOptionsClick)
-                IconActionButton(Icons.Default.Search, stringResource(R.string.search), onSearchClick)
-                IconActionButton(Icons.Default.Add, stringResource(R.string.action_add_game), onAddGameClick)
+                IconActionButton(Icons.Default.Tune, stringResource(R.string.options), onOptionsClick, size = 34.dp)
+                IconActionButton(Icons.Default.Search, stringResource(R.string.search), onSearchClick, size = 34.dp)
+                IconActionButton(Icons.Default.Add, stringResource(R.string.action_add_game), onAddGameClick, size = 34.dp)
             }
         }
 
@@ -755,6 +755,7 @@ fun AeroLibraryTabBar(
                                 onTabSelected(tab)
                             },
                             onPositioned = { _, _ -> },
+                            compact = true,
                         )
                     }
                 }
@@ -767,7 +768,7 @@ fun AeroLibraryTabBar(
                     val focused by interaction.collectIsFocusedAsState()
                     Box(
                         modifier = Modifier
-                            .heightIn(min = 40.dp)
+                            .heightIn(min = 30.dp)
                             .clip(tabPillShape(20.dp))
                             .then(
                                 if (selected) {
@@ -786,7 +787,7 @@ fun AeroLibraryTabBar(
                                 role = Role.Tab,
                                 onClick = { EmulatorSelection.select(entry.id) },
                             )
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -812,7 +813,7 @@ fun AeroLibraryTabBar(
         }
         AeroPill(shape = slant) {
             Row(
-                modifier = Modifier.padding(start = 22.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = 22.dp, end = 12.dp, top = 2.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -831,7 +832,7 @@ fun AeroLibraryTabBar(
                     maxLines = 1,
                 )
                 Box {
-                    IconActionButton(Icons.Default.Menu, stringResource(R.string.menu), onMenuClick)
+                    IconActionButton(Icons.Default.Menu, stringResource(R.string.menu), onMenuClick, size = 34.dp)
                     SupportUnreadDot(modifier = Modifier.align(Alignment.TopEnd))
                 }
             }
@@ -873,6 +874,7 @@ private fun IconActionButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    size: Dp = 44.dp,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -903,7 +905,7 @@ private fun IconActionButton(
                 scaleY = scale
                 this.alpha = alpha
             }
-            .size(44.dp)
+            .size(size)
             .clip(CircleShape)
             .background(
                 brush = Brush.radialGradient(
@@ -939,7 +941,7 @@ private fun IconActionButton(
             } else {
                 barContentColor(0.8f)
             },
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(size / 2),
         )
     }
 }
@@ -953,6 +955,8 @@ private fun TabItem(
     onClick: () -> Unit,
     onPositioned: (Float, Float) -> Unit,
     modifier: Modifier = Modifier,
+    /** A lower pill, for the dashboard's slim top bar. */
+    compact: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -978,7 +982,7 @@ private fun TabItem(
             // Min height = the sliding pill's height (40.dp) so the focus ring outlines the same
             // 40dp-tall, 20dp-radius capsule the user sees. Uses heightIn (not a fixed height) so the
             // label can grow at large accessibility font scales instead of being clipped.
-            .heightIn(min = 40.dp)
+            .heightIn(min = if (compact) 30.dp else 40.dp)
             .clip(tabPillShape(20.dp))
             .focusRing(interactionSource, tabPillShape(20.dp), width = 2.dp)
             .onGloballyPositioned { coordinates ->
@@ -993,7 +997,10 @@ private fun TabItem(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = if (tab.icon != null) 10.dp else 20.dp, vertical = 10.dp),
+            .padding(
+                horizontal = if (tab.icon != null) 10.dp else if (compact) 14.dp else 20.dp,
+                vertical = if (compact) 4.dp else 10.dp,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (tab.icon != null) {
