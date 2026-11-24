@@ -3723,7 +3723,7 @@
     <string name="shelf_light">Light games</string>
     <string name="shelf_family">Family library</string>
     <string name="covers_title">Square covers</string>
-    <string name="covers_hint">The glass frames fit square art best. Paste a free SteamGridDB API key (steamgriddb.com > Preferences > API) and the covers are fetched as square images; without it the stores' own covers are cropped.</string>
+    <string name="covers_hint">The glass frames fit square art best. Paste a free SteamGridDB API key (steamgriddb.com > Preferences > API) and the covers are fetched as square images; without it the stores\' own covers are cropped.</string>
     <string name="covers_key">SteamGridDB API key</string>
     <string name="covers_save">Save and fetch covers</string>
     <string name="covers_saved">Key saved; covers will appear as they are found</string>
