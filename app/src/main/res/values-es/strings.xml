@@ -3591,4 +3591,9 @@
     <string name="shelf_unplayed">No jugados</string>
     <string name="shelf_custom">Personalizados</string>
     <string name="shelf_library">Biblioteca</string>
+    <string name="covers_title">Carátulas cuadradas</string>
+    <string name="covers_hint">Los marcos de cristal lucen mejor con arte cuadrado. Pega una clave gratuita de la API de SteamGridDB (steamgriddb.com > Preferencias > API) y las carátulas se descargan en formato cuadrado; sin ella se recortan las de las tiendas.</string>
+    <string name="covers_key">Clave de API de SteamGridDB</string>
+    <string name="covers_save">Guardar y buscar carátulas</string>
+    <string name="covers_saved">Clave guardada; las carátulas irán apareciendo</string>
 </resources>

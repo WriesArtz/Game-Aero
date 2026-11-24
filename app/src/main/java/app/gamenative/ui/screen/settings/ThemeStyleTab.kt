@@ -13,6 +13,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -39,6 +40,7 @@ import app.gamenative.ui.theme.HOME_AERO
 import app.gamenative.ui.theme.HOME_METRO
 import app.gamenative.ui.theme.UiLook
 import app.gamenative.ui.theme.UiLooks
+import app.gamenative.utils.CoverArt
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -56,6 +58,8 @@ internal fun ThemeStyleTab(onMessage: (String) -> Unit, onWallpaper: () -> Unit)
     var safeZone by remember { mutableFloatStateOf(PrefManager.safeZonePercent.toFloat()) }
     var emulatorsOpen by remember { mutableStateOf(false) }
     val failedText = stringResource(R.string.look_apply_failed)
+    val coversSavedText = stringResource(R.string.covers_saved)
+    var gridKey by remember { mutableStateOf(PrefManager.steamGridDbKey) }
 
     Column(
         modifier = Modifier
@@ -155,6 +159,27 @@ internal fun ThemeStyleTab(onMessage: (String) -> Unit, onWallpaper: () -> Unit)
             onClick = onWallpaper,
             modifier = Modifier.focusOutline(RoundedCornerShape(12.dp), ring = false),
         ) { Text(stringResource(R.string.style_wallpaper_button)) }
+
+        SectionTitle(stringResource(R.string.covers_title))
+        Text(
+            text = stringResource(R.string.covers_hint),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = gridKey,
+            onValueChange = { gridKey = it.trim() },
+            label = { Text(stringResource(R.string.covers_key)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        RingTextButton(
+            onClick = {
+                PrefManager.steamGridDbKey = gridKey
+                CoverArt.clear(context)
+                onMessage(coversSavedText)
+            },
+            modifier = Modifier.focusOutline(RoundedCornerShape(12.dp), ring = false),
+        ) { Text(stringResource(R.string.covers_save)) }
 
         SectionTitle(stringResource(R.string.emulators_title))
         Text(

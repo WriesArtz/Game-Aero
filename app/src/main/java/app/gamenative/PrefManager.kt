@@ -1981,6 +1981,12 @@ object PrefManager {
         get() = getPref(UI_SCALE_PERCENT, 100).coerceIn(70, 130)
         set(value) = setPref(UI_SCALE_PERCENT, value.coerceIn(70, 130))
 
+    // API key of SteamGridDB, which gives the square covers of the home screen; empty = the stores' own covers
+    private val STEAMGRIDDB_KEY = stringPreferencesKey("steamgriddb_key")
+    var steamGridDbKey: String
+        get() = getPref(STEAMGRIDDB_KEY, "")
+        set(value) = setPref(STEAMGRIDDB_KEY, value.trim())
+
     // Side margin of the library screens, in percent of the screen width (0 = edge to edge)
     private val SAFE_ZONE_PERCENT = intPreferencesKey("safe_zone_percent")
     var safeZonePercent: Int

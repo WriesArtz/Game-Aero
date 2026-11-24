@@ -49,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -83,6 +84,7 @@ import app.gamenative.data.PlayHistoryStore
 import app.gamenative.emulator.EmulatorLibrary
 import app.gamenative.ui.data.LibraryState
 import app.gamenative.ui.theme.AeroStyle
+import app.gamenative.utils.CoverArt
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil.CoilImage
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -431,7 +433,10 @@ private fun AeroTile(
     )
     val shape = RoundedCornerShape(22.dp)
     val glow = style.selectionColor ?: Color(0xFF5FE6FF)
-    val imageUrl = item.capsuleImageUrl.ifEmpty { item.headerImageUrl }
+    // square art from SteamGridDB when the person has a key, else the store's cover cropped to the frame
+    val tileContext = LocalContext.current
+    val squareUrl by produceState<String?>(null, item.appId) { value = CoverArt.squareUrl(tileContext, item) }
+    val imageUrl = squareUrl ?: item.capsuleImageUrl.ifEmpty { item.headerImageUrl }
     val nameText: @Composable () -> Unit = {
         Text(
             text = item.name,
