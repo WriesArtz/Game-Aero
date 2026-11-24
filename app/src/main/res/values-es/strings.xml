@@ -3586,4 +3586,9 @@
     <string name="look_goldfish_hint">Plástico pastel transparente como un Game Boy translúcido</string>
     <string name="look_hibiscus_hint">Mar tropical, rosa hibisco y cristal nacarado</string>
     <string name="console_empty">Aún no hay juegos para esta consola</string>
+    <string name="shelf_recent">Recientes</string>
+    <string name="shelf_installed">Instalados</string>
+    <string name="shelf_unplayed">No jugados</string>
+    <string name="shelf_custom">Personalizados</string>
+    <string name="shelf_library">Biblioteca</string>
 </resources>

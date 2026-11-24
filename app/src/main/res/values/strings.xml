@@ -3712,4 +3712,9 @@
     <string name="look_goldfish_hint">Clear pastel plastic like a see-through Game Boy</string>
     <string name="look_hibiscus_hint">Tropical sea, hibiscus pink and pearly glass</string>
     <string name="console_empty">No games found for this console yet</string>
+    <string name="shelf_recent">Recent</string>
+    <string name="shelf_installed">Installed</string>
+    <string name="shelf_unplayed">Not played</string>
+    <string name="shelf_custom">Custom</string>
+    <string name="shelf_library">Library</string>
 </resources>

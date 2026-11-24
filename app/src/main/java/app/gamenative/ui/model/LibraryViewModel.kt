@@ -310,6 +310,7 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             libraryPlayHistoryDao.getAll().collect { entries ->
                 val playHistory = entries.associate { it.appId to it.lastPlayed }
+                app.gamenative.data.PlayHistoryStore.update(playHistory)
                 if (playHistoryByAppId != playHistory) {
                     playHistoryByAppId = playHistory
                     onFilterApps(paginationCurrentPage)

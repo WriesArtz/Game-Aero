@@ -1314,18 +1314,15 @@ internal fun AeroCardsRow(items: List<LibraryItem>, onNavigate: (String) -> Unit
 /** The current game's name on a clear glass plate: a bright top edge, a thin rim and no blur haze. */
 @Composable
 internal fun AeroTitlePlate(title: String, logoUrl: String?, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(24.dp)
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Crossfade(targetState = title, label = "aeroTitle") { shown ->
             if (shown.isNotEmpty()) {
                 Box(
                     modifier = Modifier
+                        // the logo floats over the wallpaper, with no frame, like a console dashboard's title
                         .widthIn(max = 620.dp)
-                        .clip(shape)
-                        .background(style.fill())
-                        .border(BorderStroke(1.dp, style.rim()), shape)
-                        .padding(horizontal = 32.dp, vertical = 16.dp),
+                        .padding(horizontal = 32.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     val nameText: @Composable () -> Unit = {
@@ -1346,8 +1343,8 @@ internal fun AeroTitlePlate(title: String, logoUrl: String?, modifier: Modifier 
                         CoilImage(
                             imageModel = { logoUrl },
                             modifier = Modifier
-                                .height(84.dp)
-                                .widthIn(min = 120.dp, max = 460.dp),
+                                .height(96.dp)
+                                .widthIn(min = 120.dp, max = 520.dp),
                             imageOptions = ImageOptions(contentScale = ContentScale.Fit, contentDescription = shown),
                             loading = {},
                             failure = { nameText() },
