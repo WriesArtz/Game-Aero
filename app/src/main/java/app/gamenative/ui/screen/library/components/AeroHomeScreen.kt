@@ -103,6 +103,7 @@ import kotlinx.coroutines.launch
 /** A selected cover is this much wider and taller than the others; the mockup's is wider than it is taller. */
 private const val SELECTED_W = 1.4f
 private const val SELECTED_H = 1.17f
+private const val SELECTED_BANNER_W = 1.25f
 private const val COVER_RATIO = 0.775f
 private const val LIBRARY_KEY = "library"
 private const val SHELF_LIMIT = 30
@@ -110,7 +111,14 @@ private const val LIGHT_BYTES = 5L * 1024 * 1024 * 1024
 private val FrameCyan = Color(0xFF5FE6FF)
 
 /** One row of the dashboard: a title and the games under it. */
-private class Shelf(val key: String, val title: String, val icon: ImageVector, val items: List<LibraryItem>)
+private class Shelf(
+    val key: String,
+    val title: String,
+    val icon: ImageVector,
+    val items: List<LibraryItem>,
+    /** Banners (the store's wide art) instead of tall covers. */
+    val wide: Boolean = false,
+)
 
 /**
  * The library's home as a console dashboard, drawn on its own instead of through the theme engine: the current
@@ -165,14 +173,34 @@ internal fun AeroHomeScreen(
         val played = { item: LibraryItem -> history[item.appId] ?: 0L }
         buildList {
             // a category that holds every game would only repeat the library shelf
-            fun category(key: String, title: String, icon: ImageVector, list: List<LibraryItem>) {
+            fun category(
+                key: String,
+                title: String,
+                icon: ImageVector,
+                list: List<LibraryItem>,
+                always: Boolean = false,
+                wide: Boolean = false,
+            ) {
                 val shown = list.take(SHELF_LIMIT)
-                if (shown.isNotEmpty() && (list.size < real.size || real.size < 2)) add(Shelf(key, title, icon, shown))
+                if (shown.isNotEmpty() && (always || list.size < real.size || real.size < 2)) {
+                    add(Shelf(key, title, icon, shown, wide))
+                }
             }
-            category("recent", titleRecent, Icons.Default.History, real.filter { played(it) > 0L }.sortedByDescending { played(it) })
+            // the two main shelves are always there; with no play history yet, "recent" shows the installed games
+            val playedList = real.filter { played(it) > 0L }.sortedByDescending { played(it) }
+            category(
+                "recent", titleRecent, Icons.Default.History,
+                playedList.ifEmpty { real.filter { it.isInstalled }.ifEmpty { real } },
+                always = true,
+            )
+            category("unplayed", titleUnplayed, Icons.Default.SportsEsports, real.filter { played(it) == 0L }, always = true)
             category("favorites", titleFavorites, Icons.Default.Favorite, real.filter { it.appId in favorites })
-            category("installed", titleInstalled, Icons.Default.CheckCircle, real.filter { it.isInstalled })
-            category("unplayed", titleUnplayed, Icons.Default.SportsEsports, real.filter { played(it) == 0L })
+            // the installed games as banners, for a mix of tall covers and wide art
+            category(
+                "installed", titleInstalled, Icons.Default.CheckCircle,
+                real.filter { it.isInstalled && it.headerImageUrl.isNotEmpty() },
+                always = true, wide = true,
+            )
             category(
                 "recommended", titleRecommended, Icons.Default.Star,
                 real.filter { it.compatibilityStatus == GameCompatibilityStatus.RECOMMENDED },
@@ -237,6 +265,8 @@ internal fun AeroHomeScreen(
         val shelvesTop = screenH * 0.197f
         val tileH = (screenH * 0.25f).coerceAtLeast(72.dp)
         val tileW = tileH * COVER_RATIO
+        val bannerH = tileH * 0.78f
+        val bannerW = bannerH * 2.14f
         val gap = tileW * 0.115f
         val rowHeight = tileH * SELECTED_H + 10.dp
         val pillHeight = (screenH * 0.075f).coerceIn(26.dp, 40.dp)
@@ -245,6 +275,7 @@ internal fun AeroHomeScreen(
         val density = LocalDensity.current
         val tilePx = with(density) { tileW.toPx() }
         val selectedPx = with(density) { (tileW * SELECTED_W).toPx() }
+        val bannerSelectedPx = with(density) { (bannerW * SELECTED_BANNER_W).toPx() }
         val viewportPx = with(density) { screenW.toPx() }
 
         if (items.isEmpty() && emulatorGames.isEmpty()) {
@@ -265,7 +296,7 @@ internal fun AeroHomeScreen(
             modifier = Modifier
                 .offset(y = shelvesTop)
                 .fillMaxWidth()
-                .height(screenH - shelvesTop - footer)
+                .height(screenH - shelvesTop)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -280,14 +311,15 @@ internal fun AeroHomeScreen(
                     pillHeight = pillHeight,
                     chevron = chevron,
                     rowState = rowState,
-                    scrollStepPx = (tilePx + with(density) { gap.toPx() }) * 4f,
+                    scrollStepPx = ((if (shelf.wide) with(density) { bannerW.toPx() } else tilePx) + with(density) { gap.toPx() }) * 4f,
                 ) {
                     itemsIndexed(shelf.items, key = { _, item -> "${shelf.key}_${item.appId}" }) { _, item ->
                         val isCurrent = focusedShelf == shelf.key && item.appId == selectedId
                         AeroTile(
                             item = item,
-                            width = tileW,
-                            height = tileH,
+                            width = if (shelf.wide) bannerW else tileW,
+                            height = if (shelf.wide) bannerH else tileH,
+                            wide = shelf.wide,
                             current = isCurrent,
                             focusRequester = if (firstItemFocusRequester != null && shelf.key == targetShelfKey && item.appId == targetId) {
                                 firstItemFocusRequester
@@ -318,10 +350,10 @@ internal fun AeroHomeScreen(
                     }
                 }
                 // keep the current cover at the middle of the shelf that has the focus
-                LaunchedEffect(focusedShelf, selectedId, shelf.items.size, selectedPx, viewportPx) {
+                LaunchedEffect(focusedShelf, selectedId, shelf.items.size, selectedPx, bannerSelectedPx, viewportPx) {
                     if (focusedShelf == shelf.key) {
                         val at = shelf.items.indexOfFirst { it.appId == selectedId }
-                        if (at >= 0) rowState.animateScrollToItem(at, -((viewportPx - selectedPx) / 2f).toInt())
+                        if (at >= 0) rowState.animateScrollToItem(at, -((viewportPx - (if (shelf.wide) bannerSelectedPx else selectedPx)) / 2f).toInt())
                     }
                 }
             }
@@ -347,7 +379,8 @@ internal fun AeroHomeScreen(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            // room under the last shelf so it can scroll clear of the hint bar
+            Spacer(modifier = Modifier.height(footer + 16.dp))
         }
 
         // the current game's logo floats over the top of the shelves, as on the console's dashboard; drawn after them
@@ -482,6 +515,7 @@ private fun AeroTile(
     item: LibraryItem,
     width: Dp,
     height: Dp,
+    wide: Boolean,
     current: Boolean,
     focusRequester: FocusRequester?,
     onFocus: () -> Unit,
@@ -491,7 +525,7 @@ private fun AeroTile(
     val focused by interaction.collectIsFocusedAsState()
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     val sizeSpec = spring<Dp>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
-    val w by animateDpAsState(if (current) width * SELECTED_W else width, sizeSpec, label = "aeroTileW")
+    val w by animateDpAsState(if (current) width * (if (wide) SELECTED_BANNER_W else SELECTED_W) else width, sizeSpec, label = "aeroTileW")
     val h by animateDpAsState(if (current) height * SELECTED_H else height, sizeSpec, label = "aeroTileH")
     val radius = minOf(w, h) * 0.14f
     val shape = RoundedCornerShape(radius)
@@ -499,8 +533,12 @@ private fun AeroTile(
     val glow = if (current) (style.selectionColor ?: FrameCyan) else FrameCyan
     // square art from SteamGridDB when the person has a key, else the store's cover cropped to the frame
     val tileContext = LocalContext.current
-    val squareUrl by produceState<String?>(null, item.appId) { value = CoverArt.squareUrl(tileContext, item) }
-    val imageUrl = squareUrl ?: item.capsuleImageUrl.ifEmpty { item.headerImageUrl }
+    val squareUrl by produceState<String?>(null, item.appId, wide) { value = if (wide) null else CoverArt.squareUrl(tileContext, item) }
+    val imageUrl = if (wide) {
+        item.headerImageUrl.ifEmpty { item.capsuleImageUrl }
+    } else {
+        squareUrl ?: item.capsuleImageUrl.ifEmpty { item.headerImageUrl }
+    }
     val nameText: @Composable () -> Unit = {
         Text(
             text = item.name,
