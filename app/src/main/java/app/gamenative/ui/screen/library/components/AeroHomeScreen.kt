@@ -1,9 +1,17 @@
 package app.gamenative.ui.screen.library.components
 
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,6 +61,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,10 +81,16 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import app.gamenative.ui.theme.AeroStyleState
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
@@ -118,6 +133,38 @@ private const val SHELF_LIMIT = 30
 private const val LIGHT_BYTES = 5L * 1024 * 1024 * 1024
 private val FrameCyan = Color(0xFF5FE6FF)
 
+/**
+ * The dashboard's running animations, shared by every cover so that one clock drives them all. The values are read
+ * only while drawing, so a tick redraws the current cover instead of recomposing the screen.
+ */
+private class AeroFx(val pulse: State<Float>, val shine: State<Float>, val spin: State<Float>, val drift: State<Float>)
+
+@Composable
+private fun rememberAeroFx(): AeroFx {
+    val clock = rememberInfiniteTransition(label = "aeroFx")
+    val pulse = clock.animateFloat(
+        0.8f, 1.2f,
+        infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pulse",
+    )
+    val shine = clock.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(tween(3200, easing = LinearEasing)),
+        label = "shine",
+    )
+    val spin = clock.animateFloat(
+        0f, 360f,
+        infiniteRepeatable(tween(7000, easing = LinearEasing)),
+        label = "spin",
+    )
+    val drift = clock.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(tween(16000, easing = LinearEasing)),
+        label = "drift",
+    )
+    return remember(pulse, shine, spin, drift) { AeroFx(pulse, shine, spin, drift) }
+}
+
 /** One row of the dashboard: a title and the games under it. */
 private class Shelf(
     val key: String,
@@ -159,6 +206,7 @@ internal fun AeroHomeScreen(
 
     var selectedId by remember { mutableStateOf<String?>(null) }
     var focusedShelf by remember { mutableStateOf<String?>(null) }
+    val fx = rememberAeroFx()
 
     val favorites by FavoritesManager.favorites.collectAsStateWithLifecycle()
     val titleRecent = stringResource(R.string.shelf_recent)
@@ -299,6 +347,24 @@ internal fun AeroHomeScreen(
             return@BoxWithConstraints
         }
 
+        // bubbles drifting up behind the covers
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val d = this.density
+            val t = fx.drift.value
+            for (i in 0 until 18) {
+                val seed = i * 0.6180339f
+                val x = ((seed * 7.3f) % 1f) * size.width
+                val speed = (1 + i % 3).toFloat()
+                val y = size.height * (1f - ((t * speed + seed) % 1f))
+                val r = (4f + (i % 4) * 4f) * d
+                val sway = kotlin.math.sin((t * 6.2831855f * speed) + i) * 10f * d
+                val a = 0.16f + (i % 3) * 0.06f
+                drawCircle(Color.White.copy(alpha = a * 0.5f), r, Offset(x + sway, y))
+                drawCircle(Color.White.copy(alpha = a + 0.1f), r, Offset(x + sway, y), style = Stroke(width = 1.2f * d))
+                drawCircle(Color.White.copy(alpha = a + 0.25f), r * 0.22f, Offset(x + sway - r * 0.35f, y - r * 0.35f))
+            }
+        }
+
         // the shelves, one under the other; the page scrolls to keep the focused one in view
         Column(
             modifier = Modifier
@@ -322,13 +388,14 @@ internal fun AeroHomeScreen(
                     scrollStepPx = ((if (shelf.wide) with(density) { bannerW.toPx() } else tilePx) + with(density) { gap.toPx() }) * 4f,
                 ) {
                     itemsIndexed(shelf.items, key = { _, item -> "${shelf.key}_${item.appId}" }) { _, item ->
-                        val isCurrent = focusedShelf == shelf.key && item.appId == selectedId
+                        val isCurrent = (focusedShelf ?: firstShelfKey) == shelf.key && item.appId == (selectedId ?: targetId)
                         AeroTile(
                             item = item,
                             width = if (shelf.wide) bannerW else tileW,
                             height = if (shelf.wide) bannerH else tileH,
                             wide = shelf.wide,
                             current = isCurrent,
+                            fx = fx,
                             focusRequester = if (firstItemFocusRequester != null && shelf.key == targetShelfKey && item.appId == targetId) {
                                 firstItemFocusRequester
                             } else {
@@ -511,6 +578,7 @@ private fun AeroTile(
     height: Dp,
     wide: Boolean,
     current: Boolean,
+    fx: AeroFx,
     focusRequester: FocusRequester?,
     onFocus: () -> Unit,
     onClick: () -> Unit,
@@ -541,7 +609,7 @@ private fun AeroTile(
                 .height(h)
                 // the halo around the cover, outside its edge, in soft layers: faint on all of them, strong on the current one
                 .drawBehind {
-                    val base = if (focused) 0.5f else if (current) 0.38f else 0.2f
+                    val base = if (focused) 0.55f else if (current) 0.42f * fx.pulse.value else 0.2f
                     for (layer in 0..3) {
                         val spread = ((if (current) 22.dp else 12.dp) * (layer + 1) / 4f).toPx()
                         drawRoundRect(
@@ -556,7 +624,7 @@ private fun AeroTile(
                 .onFocusChanged { if (it.isFocused) onFocus() }
                 .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         ) {
-            GlassCover(item, imageUrl, w, h, radius, current, focused, style)
+            GlassCover(item, imageUrl, w, h, radius, current, focused, style, fx)
         }
         // the mirror image on the floor: the bottom of the cover, flipped and faded out
         Box(
@@ -575,7 +643,7 @@ private fun AeroTile(
             contentAlignment = Alignment.TopStart,
         ) {
             Box(modifier = Modifier.requiredSize(w, h).graphicsLayer { scaleY = -1f }) {
-                GlassCover(item, imageUrl, w, h, radius, current, false, style)
+                GlassCover(item, imageUrl, w, h, radius, current, false, style, null)
             }
         }
     }
@@ -592,9 +660,10 @@ private fun GlassCover(
     current: Boolean,
     focused: Boolean,
     style: AeroStyleState,
+    fx: AeroFx?,
 ) {
     val shape = RoundedCornerShape(radius)
-    val frame = (minOf(w, h) * 0.045f).coerceIn(3.dp, 7.dp)
+    val frame = (minOf(w, h) * 0.022f).coerceIn(2.dp, 4.dp)
     val nameText: @Composable () -> Unit = {
         Text(
             text = item.name,
@@ -613,7 +682,7 @@ private fun GlassCover(
             .height(h)
             .clip(shape)
             // the thick frosted bezel the art sits in
-            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.72f), FrameCyan.copy(alpha = 0.5f))))
+            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.6f), FrameCyan.copy(alpha = 0.4f))))
             .border(
                 BorderStroke(
                     if (focused) 3.dp else 1.5.dp,
@@ -621,6 +690,37 @@ private fun GlassCover(
                 ),
                 shape,
             )
+            .drawWithContent {
+                drawContent()
+                if (fx != null && current) {
+                    // a rim whose colors travel around the cover: cyan, white, pink and gold
+                    val t = 3.dp.toPx()
+                    val corner = CornerRadius(radius.toPx())
+                    val ring = Path().apply {
+                        fillType = PathFillType.EvenOdd
+                        addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, size.width, size.height, corner))
+                        addRoundRect(
+                            androidx.compose.ui.geometry.RoundRect(
+                                t, t, size.width - t, size.height - t,
+                                CornerRadius((radius.toPx() - t).coerceAtLeast(0f)),
+                            ),
+                        )
+                    }
+                    clipPath(ring) {
+                        rotate(fx.spin.value) {
+                            drawCircle(
+                                brush = Brush.sweepGradient(
+                                    listOf(
+                                        Color(0xFF5FE6FF), Color.White, Color(0xFFFF9CE8),
+                                        Color(0xFFFFE08A), Color(0xFF5FE6FF),
+                                    ),
+                                ),
+                                radius = size.maxDimension,
+                            )
+                        }
+                    }
+                }
+            }
             .padding(frame),
         contentAlignment = Alignment.Center,
     ) {
@@ -632,6 +732,23 @@ private fun GlassCover(
                 .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)), inner)
                 .drawWithContent {
                     drawContent()
+                    // a cyan light screened over the art: pale at the top, deep and bright at the bottom
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            listOf(Color(0xFF9CEBFF).copy(alpha = 0.5f), Color(0xFF1E9BFF).copy(alpha = 0.28f), Color(0xFF3FE0FF).copy(alpha = 0.62f)),
+                        ),
+                        blendMode = BlendMode.Screen,
+                    )
+                    // an inner glow along the edge, as if the pane were lit from within
+                    val glowAlpha = if (current) 0.9f else 0.6f
+                    for (i in 0..3) {
+                        val wide = (2f + i * 3.5f) * density
+                        drawRoundRect(
+                            color = Color(0xFF7FF0FF).copy(alpha = glowAlpha / (i + 1.6f)),
+                            cornerRadius = CornerRadius(radius.toPx() - frame.toPx()),
+                            style = Stroke(width = wide * 2f),
+                        )
+                    }
                     // the curved gloss over the top half, like light on a pane of glass
                     val gloss = Path().apply {
                         moveTo(0f, 0f)
@@ -643,10 +760,35 @@ private fun GlassCover(
                     drawPath(
                         path = gloss,
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.36f), Color.White.copy(alpha = 0.06f)),
+                            colors = listOf(Color.White.copy(alpha = 0.42f), Color.White.copy(alpha = 0.08f)),
                             endY = size.height * 0.55f,
                         ),
                     )
+                    // a small bright glint in the top-left corner
+                    drawCircle(Color.White.copy(alpha = 0.55f), radius = size.minDimension * 0.045f, center = Offset(size.width * 0.16f, size.height * 0.09f))
+                    if (fx != null && current) {
+                        // a band of light that sweeps across the current cover
+                        val t = fx.shine.value
+                        val band = size.width * 0.32f
+                        val skew = size.height * 0.35f
+                        val x = (-0.5f + 2f * t) * size.width
+                        val sweep = Path().apply {
+                            moveTo(x + skew, 0f)
+                            lineTo(x + skew + band, 0f)
+                            lineTo(x + band, size.height)
+                            lineTo(x, size.height)
+                            close()
+                        }
+                        drawPath(
+                            path = sweep,
+                            brush = Brush.horizontalGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.5f), Color.Transparent),
+                                startX = x,
+                                endX = x + band + skew,
+                            ),
+                            blendMode = BlendMode.Screen,
+                        )
+                    }
                 },
             contentAlignment = Alignment.Center,
         ) {
@@ -661,21 +803,6 @@ private fun GlassCover(
             } else {
                 nameText()
             }
-            // a cool blue tint over the whole art, then a frosted wash: bright at the top, cyan at the bottom
-            Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1E9BFF).copy(alpha = 0.16f)))
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.2f),
-                                Color.Transparent,
-                                FrameCyan.copy(alpha = 0.3f),
-                            ),
-                        ),
-                    ),
-            )
             if (current) {
                 Box(
                     modifier = Modifier
