@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
@@ -63,7 +64,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -71,7 +74,12 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import app.gamenative.ui.theme.AeroStyleState
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -263,12 +271,12 @@ internal fun AeroHomeScreen(
         // every measure follows the screen's height, so the proportions hold from a phone to a television
         val footer = (screenH * 0.12f).coerceIn(40.dp, 64.dp)
         val shelvesTop = screenH * 0.197f
-        val tileH = (screenH * 0.25f).coerceAtLeast(72.dp)
+        val tileH = (screenH * 0.235f).coerceAtLeast(72.dp)
         val tileW = tileH * COVER_RATIO
         val bannerH = tileH * 0.78f
         val bannerW = bannerH * 2.14f
         val gap = tileW * 0.115f
-        val rowHeight = tileH * SELECTED_H + 10.dp
+        val rowHeight = tileH * SELECTED_H * 1.2f + 8.dp
         val pillHeight = (screenH * 0.075f).coerceIn(26.dp, 40.dp)
         val chevron = (screenH * 0.075f).coerceIn(28.dp, 40.dp)
         val logoHeight = (screenH * 0.15f).coerceIn(56.dp, 112.dp)
@@ -444,13 +452,6 @@ private fun ShelfFrame(
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
-            Box(
-                modifier = Modifier
-                    .padding(start = 12.dp)
-                    .weight(1f)
-                    .height(1.dp)
-                    .background(Brush.horizontalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.Transparent))),
-            )
         }
         Box(modifier = Modifier.fillMaxWidth().height(rowHeight)) {
             LazyRow(
@@ -478,13 +479,6 @@ private fun ShelfFrame(
                 )
             }
         }
-        // a faint reflection of the row on the glossy floor
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.12f), Color.Transparent))),
-        )
     }
 }
 
@@ -506,9 +500,9 @@ private fun ScrollButton(icon: ImageVector, size: Dp, modifier: Modifier, onClic
 }
 
 /**
- * One glass cover, slightly taller than wide: a frosted frame with a white-to-cyan edge, the art inset in it under a
- * cool frosted wash, and a soft halo. The current game's cover is larger with a stronger glow; the focused one has a
- * thicker edge.
+ * One glass cover, slightly taller than wide: a thick frosted bezel with a white-to-cyan edge, the art inset in it
+ * under a cool blue tint, a curved gloss across its top half, a soft halo, and a faded mirror image under it, as on
+ * a glossy floor. The current game's cover is larger with a stronger glow; the focused one has a thicker edge.
  */
 @Composable
 private fun AeroTile(
@@ -527,9 +521,7 @@ private fun AeroTile(
     val sizeSpec = spring<Dp>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
     val w by animateDpAsState(if (current) width * (if (wide) SELECTED_BANNER_W else SELECTED_W) else width, sizeSpec, label = "aeroTileW")
     val h by animateDpAsState(if (current) height * SELECTED_H else height, sizeSpec, label = "aeroTileH")
-    val radius = minOf(w, h) * 0.14f
-    val shape = RoundedCornerShape(radius)
-    val frame = 3.dp
+    val radius = minOf(w, h) * 0.17f
     val glow = if (current) (style.selectionColor ?: FrameCyan) else FrameCyan
     // square art from SteamGridDB when the person has a key, else the store's cover cropped to the frame
     val tileContext = LocalContext.current
@@ -539,6 +531,70 @@ private fun AeroTile(
     } else {
         squareUrl ?: item.capsuleImageUrl.ifEmpty { item.headerImageUrl }
     }
+    Column(
+        modifier = Modifier.zIndex(if (current) 1f else 0f),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(w)
+                .height(h)
+                // the halo around the cover, outside its edge, in soft layers: faint on all of them, strong on the current one
+                .drawBehind {
+                    val base = if (focused) 0.5f else if (current) 0.38f else 0.2f
+                    for (layer in 0..3) {
+                        val spread = ((if (current) 22.dp else 12.dp) * (layer + 1) / 4f).toPx()
+                        drawRoundRect(
+                            color = glow.copy(alpha = base * (1f - layer * 0.22f) * 0.55f),
+                            topLeft = Offset(-spread / 2f, -spread / 2f),
+                            size = Size(this.size.width + spread, this.size.height + spread),
+                            cornerRadius = CornerRadius(radius.toPx() + spread / 2f),
+                        )
+                    }
+                }
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .onFocusChanged { if (it.isFocused) onFocus() }
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+        ) {
+            GlassCover(item, imageUrl, w, h, radius, current, focused, style)
+        }
+        // the mirror image on the floor: the bottom of the cover, flipped and faded out
+        Box(
+            modifier = Modifier
+                .width(w)
+                .height(h * 0.2f)
+                .clipToBounds()
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent)),
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
+            contentAlignment = Alignment.TopStart,
+        ) {
+            Box(modifier = Modifier.requiredSize(w, h).graphicsLayer { scaleY = -1f }) {
+                GlassCover(item, imageUrl, w, h, radius, current, false, style)
+            }
+        }
+    }
+}
+
+/** The cover itself: bezel, art, tint and gloss. Drawn twice per tile, the second flipped as the reflection. */
+@Composable
+private fun GlassCover(
+    item: LibraryItem,
+    imageUrl: String,
+    w: Dp,
+    h: Dp,
+    radius: Dp,
+    current: Boolean,
+    focused: Boolean,
+    style: AeroStyleState,
+) {
+    val shape = RoundedCornerShape(radius)
+    val frame = (minOf(w, h) * 0.045f).coerceIn(3.dp, 7.dp)
     val nameText: @Composable () -> Unit = {
         Text(
             text = item.name,
@@ -553,29 +609,15 @@ private fun AeroTile(
     }
     Box(
         modifier = Modifier
-            .zIndex(if (current) 1f else 0f)
             .width(w)
             .height(h)
-            // the halo around the cover, outside its edge: faint on all of them, strong on the current one
-            .drawBehind {
-                val spread = (if (current) 14.dp else 6.dp).toPx()
-                drawRoundRect(
-                    color = glow.copy(alpha = if (focused) 0.55f else if (current) 0.4f else 0.16f),
-                    topLeft = Offset(-spread / 2f, -spread / 2f),
-                    size = Size(this.size.width + spread, this.size.height + spread),
-                    cornerRadius = CornerRadius(radius.toPx() + spread / 2f),
-                )
-            }
             .clip(shape)
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .onFocusChanged { if (it.isFocused) onFocus() }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            // the frosted frame the art sits in
-            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), FrameCyan.copy(alpha = 0.35f))))
+            // the thick frosted bezel the art sits in
+            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.72f), FrameCyan.copy(alpha = 0.5f))))
             .border(
                 BorderStroke(
                     if (focused) 3.dp else 1.5.dp,
-                    Brush.verticalGradient(listOf(Color.White, FrameCyan.copy(alpha = if (current) 1f else 0.7f))),
+                    Brush.verticalGradient(listOf(Color.White, FrameCyan.copy(alpha = if (current) 1f else 0.75f))),
                 ),
                 shape,
             )
@@ -583,7 +625,31 @@ private fun AeroTile(
         contentAlignment = Alignment.Center,
     ) {
         val inner = RoundedCornerShape((radius - frame).coerceAtLeast(2.dp))
-        Box(modifier = Modifier.fillMaxSize().clip(inner), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(inner)
+                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)), inner)
+                .drawWithContent {
+                    drawContent()
+                    // the curved gloss over the top half, like light on a pane of glass
+                    val gloss = Path().apply {
+                        moveTo(0f, 0f)
+                        lineTo(size.width, 0f)
+                        lineTo(size.width, size.height * 0.40f)
+                        quadraticTo(size.width * 0.5f, size.height * 0.58f, 0f, size.height * 0.40f)
+                        close()
+                    }
+                    drawPath(
+                        path = gloss,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.36f), Color.White.copy(alpha = 0.06f)),
+                            endY = size.height * 0.55f,
+                        ),
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
             if (imageUrl.isNotEmpty()) {
                 CoilImage(
                     imageModel = { imageUrl },
@@ -595,16 +661,17 @@ private fun AeroTile(
             } else {
                 nameText()
             }
-            // a frosted, cool wash over the art: bright at the top like a pane of glass, cyan at the bottom
+            // a cool blue tint over the whole art, then a frosted wash: bright at the top, cyan at the bottom
+            Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1E9BFF).copy(alpha = 0.16f)))
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.White.copy(alpha = 0.34f),
-                                Color.White.copy(alpha = 0.06f),
-                                FrameCyan.copy(alpha = 0.22f),
+                                Color.White.copy(alpha = 0.2f),
+                                Color.Transparent,
+                                FrameCyan.copy(alpha = 0.3f),
                             ),
                         ),
                     ),
@@ -615,7 +682,7 @@ private fun AeroTile(
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.5f)),
+                                listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.45f)),
                             ),
                         ),
                 )
