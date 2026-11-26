@@ -69,10 +69,11 @@ internal fun CaseCover(
     focused: Boolean,
     style: AeroStyleState,
     fx: AeroFx?,
+    realistic: Boolean = false,
 ) {
     val corner = minOf(w, h) * 0.05f
     val shape = RoundedCornerShape(corner)
-    val bezel = (minOf(w, h) * 0.03f * style.f(style.frameWidth)).coerceIn(1.5.dp, 12.dp)
+    val bezel = (minOf(w, h) * (if (realistic) 0.042f else 0.03f) * style.f(style.frameWidth)).coerceIn(1.5.dp, 14.dp)
     val frameAlpha = style.f(style.frameAlpha)
     val light = style.f(style.frameLight)
     val plastic = style.frameTint ?: Color(0xFF1E8CF0)
@@ -136,6 +137,7 @@ internal fun CaseCover(
                         end = Offset(size.width * 0.35f, size.height * 0.3f),
                     ),
                 )
+                if (realistic) drawPlasticDetail(plastic, bezel.toPx(), corner.toPx(), fxLevel)
                 drawRoundRect(
                     color = Color.White.copy(alpha = (0.35f * fxLevel).coerceIn(0f, 1f)),
                     topLeft = Offset(bezel.toPx() * 0.25f, corner.toPx()),
@@ -205,6 +207,8 @@ internal fun CaseCover(
                     .clip(RoundedCornerShape(corner * 0.5f))
                     .drawWithContent {
                         drawContent()
+                        // under the clear lid the printed sheet is a little shaded at its edges
+                        if (realistic) drawLidShade()
                         drawFaceDecor(if (live) fx else null, fxLevel, motion)
                     },
                 contentAlignment = Alignment.Center,
@@ -218,6 +222,8 @@ internal fun CaseCover(
                         failure = { nameText() },
                     )
                 } else {
+                    // no art: the empty tray of the case, with its hub, and the name over it
+                    Box(modifier = Modifier.fillMaxSize().drawWithContent { drawTray(plastic) })
                     nameText()
                 }
                 Box(
@@ -326,4 +332,91 @@ private fun DrawScope.drawFaceDecor(fx: AeroFx?, level: Float, motion: Float) {
     drawBubble(Offset(sx + sw * 0.25f, sy + sh * 0.45f), sh * 0.22f, Color.White, 0.9f)
     drawBubble(Offset(sx + sw * 0.6f, sy + sh * 0.35f), sh * 0.16f, Color.White, 0.9f)
     drawBubble(Offset(sx + sw * 0.82f, sy + sh * 0.6f), sh * 0.12f, Color.White, 0.9f)
+}
+
+/**
+ * What makes the case look photographed: the thick wall of the plastic on its right edge, the clips of the tray
+ * showing at the top and the bottom, a line where the front cover hinges, the plastic darkening towards its edges and
+ * a second, thin streak of light.
+ */
+private fun DrawScope.drawPlasticDetail(plastic: Color, bezel: Float, corner: Float, level: Float) {
+    val w = size.width
+    val h = size.height
+    val deep = lerp(plastic, Color.Black, 0.45f)
+    // the right wall of the case, seen as a thick strip of darker plastic with a bright edge
+    drawRect(
+        brush = Brush.horizontalGradient(listOf(Color.Transparent, deep.copy(alpha = 0.7f)), startX = w - bezel * 2.4f, endX = w),
+        topLeft = Offset(w - bezel * 2.4f, corner),
+        size = Size(bezel * 2.4f, h - corner * 2f),
+    )
+    drawLine(Color.White.copy(alpha = 0.55f * level.coerceAtMost(1f)), Offset(w - bezel * 0.5f, corner), Offset(w - bezel * 0.5f, h - corner), strokeWidth = bezel * 0.18f)
+    // the plastic gets deeper in blue towards the top and bottom edges
+    drawRect(Brush.verticalGradient(listOf(deep.copy(alpha = 0.55f), Color.Transparent), endY = bezel * 2.2f))
+    drawRect(
+        Brush.verticalGradient(listOf(Color.Transparent, deep.copy(alpha = 0.55f)), startY = h - bezel * 2.2f, endY = h),
+    )
+    // the tray's clips: half-rings at the top and at the bottom, in clear plastic
+    val clip = bezel * 2.6f
+    val xs = listOf(0.3f, 0.78f)
+    for (x in xs) {
+        val cx = w * x
+        drawArc(
+            color = Color.White.copy(alpha = 0.55f),
+            startAngle = 0f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(cx - clip, bezel * 0.9f - clip * 0.2f),
+            size = Size(clip * 2f, clip * 1.4f),
+            style = Stroke(width = bezel * 0.16f),
+        )
+        drawArc(
+            color = Color.White.copy(alpha = 0.55f),
+            startAngle = 180f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(cx - clip, h - bezel * 0.9f - clip * 1.2f),
+            size = Size(clip * 2f, clip * 1.4f),
+            style = Stroke(width = bezel * 0.16f),
+        )
+    }
+    // the hinge between the spine and the front cover
+    drawLine(Color.White.copy(alpha = 0.35f), Offset(w * 0.135f, corner), Offset(w * 0.135f, h - corner), strokeWidth = bezel * 0.14f)
+    // a thin second streak of light, parallel to the first
+    val streak = Path().apply {
+        moveTo(w * 0.62f, 0f)
+        lineTo(w * 0.7f, 0f)
+        lineTo(w * 0.1f, h * 0.62f)
+        lineTo(w * 0.05f, h * 0.62f)
+        close()
+    }
+    drawPath(streak, Color.White.copy(alpha = (0.14f * level).coerceIn(0f, 1f)))
+}
+
+/** The shade a clear lid leaves along the edges of the sheet under it: darker at the top and left, light at the foot. */
+private fun DrawScope.drawLidShade() {
+    val edge = minOf(size.width, size.height) * 0.05f
+    drawRect(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent), endY = edge * 1.6f))
+    drawRect(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.22f), Color.Transparent), endX = edge))
+    drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.14f)), startY = size.height - edge, endY = size.height))
+}
+
+/** The empty tray of a jewel case seen through its clear front: a deep blue dish with a ring and a hub of spokes. */
+private fun DrawScope.drawTray(plastic: Color) {
+    val c = Offset(size.width * 0.5f, size.height * 0.5f)
+    val r = minOf(size.width, size.height) * 0.46f
+    drawRect(lerp(plastic, Color.Black, 0.35f).copy(alpha = 0.85f))
+    drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.18f), Color.Transparent), center = c, radius = r), r, c)
+    drawCircle(Color.White.copy(alpha = 0.35f), r, c, style = Stroke(width = r * 0.03f))
+    drawCircle(Color.White.copy(alpha = 0.22f), r * 0.94f, c, style = Stroke(width = r * 0.015f))
+    val hub = r * 0.22f
+    drawCircle(Color.White.copy(alpha = 0.35f), hub, c, style = Stroke(width = r * 0.03f))
+    for (i in 0 until 8) {
+        val a = i * 0.7853982f
+        drawLine(
+            Color.White.copy(alpha = 0.4f),
+            Offset(c.x + kotlin.math.cos(a) * hub * 0.55f, c.y + kotlin.math.sin(a) * hub * 0.55f),
+            Offset(c.x + kotlin.math.cos(a) * hub * 1.05f, c.y + kotlin.math.sin(a) * hub * 1.05f),
+            strokeWidth = r * 0.025f,
+        )
+    }
 }

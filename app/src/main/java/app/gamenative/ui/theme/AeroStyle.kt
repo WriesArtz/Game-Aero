@@ -15,6 +15,9 @@ const val HOME_METRO = 1
 /** The glass covers drawn as jewel cases with a white spine, as on a boxed disc. */
 const val HOME_TRUE = 2
 
+/** Jewel cases drawn like photographs: thick plastic, clips, a turn in space, shadows and reflections. */
+const val HOME_REALISTIC = 3
+
 /** The moving effect of the current cover. */
 const val FX_SHINE = 0
 const val FX_WATER = 1
@@ -60,6 +63,11 @@ data class AeroStyleState(
     /** Which moving effect the current cover has: one of the FX_ constants. */
     val fxMode: Int = FX_SHINE,
 ) {
+    /** The covers are drawn as jewel cases, flat or realistic. */
+    val cases: Boolean get() = homeStyle == HOME_TRUE || homeStyle == HOME_REALISTIC
+
+    val realistic: Boolean get() = homeStyle == HOME_REALISTIC
+
     val frameTint: Color? get() = if (frameColor == 0) null else Color(frameColor)
     val fxTint: Color? get() = if (fxColor == 0) null else Color(fxColor)
 

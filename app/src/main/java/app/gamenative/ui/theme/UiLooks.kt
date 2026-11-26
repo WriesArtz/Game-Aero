@@ -43,6 +43,14 @@ object UiLooks {
             style = AeroStyleState(homeStyle = HOME_TRUE),
         ),
         UiLook(
+            id = "realistic",
+            name = "Realistic Fruit Boxes",
+            hint = R.string.look_realistic_hint,
+            themeName = "Frutiger Aero",
+            wallpaper = WallpaperMode.WATER,
+            style = AeroStyleState(homeStyle = HOME_REALISTIC),
+        ),
+        UiLook(
             id = "crystal",
             name = "Liquid Crystal",
             hint = R.string.look_crystal_hint,

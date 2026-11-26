@@ -88,7 +88,7 @@ import androidx.compose.ui.graphics.Brush
 import app.gamenative.ui.theme.AeroStyleState
 import app.gamenative.ui.theme.FX_IRIDESCENT
 import app.gamenative.ui.theme.FX_SHINE
-import app.gamenative.ui.theme.HOME_TRUE
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -297,7 +297,7 @@ internal fun AeroHomeScreen(
         val footer = (screenH * 0.12f).coerceIn(40.dp, 64.dp)
         val shelvesTop = screenH * 0.197f
         val tileH = (screenH * 0.235f).coerceAtLeast(72.dp)
-        val trueAero = style.homeStyle == HOME_TRUE
+        val trueAero = style.cases
         val tileW = tileH * (if (trueAero) CASE_RATIO else COVER_RATIO)
         val selW = if (trueAero) SELECTED_CASE else SELECTED_W
         val selH = if (trueAero) SELECTED_CASE else SELECTED_H
@@ -590,7 +590,10 @@ private fun AeroTile(
     val focused by interaction.collectIsFocusedAsState()
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     val sizeSpec = spring<Dp>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
-    val trueCase = style.homeStyle == HOME_TRUE && !wide
+    val trueCase = style.cases && !wide
+    val realistic = trueCase && style.realistic
+    // in the realistic boxes the covers beside the current one are turned a little, like cases on a shelf
+    val tilt by animateFloatAsState(if (realistic && !current) 16f else 0f, spring(stiffness = Spring.StiffnessLow), label = "aeroTilt")
     val grow = if (wide) SELECTED_BANNER_W else if (trueCase) SELECTED_CASE else SELECTED_W
     val growH = if (trueCase) SELECTED_CASE else SELECTED_H
     val w by animateDpAsState(if (current) width * grow else width, sizeSpec, label = "aeroTileW")
@@ -613,6 +616,8 @@ private fun AeroTile(
             .zIndex(if (current) 1f else 0f)
             // the current cover floats a little, slowly
             .graphicsLayer {
+                rotationY = tilt
+                cameraDistance = 14f * density
                 translationY = if (current && motion > 0f) {
                     kotlin.math.sin(fx.spin.value * 0.0174533f * 2f) * 3.dp.toPx() * motion.coerceAtMost(1.5f)
                 } else {
@@ -638,6 +643,14 @@ private fun AeroTile(
                             cornerRadius = CornerRadius(radius.toPx() + spread / 2f),
                         )
                     }
+                    if (realistic) {
+                        // the shadow the case casts on the glossy floor
+                        drawOval(
+                            color = Color.Black.copy(alpha = 0.35f),
+                            topLeft = Offset(this.size.width * 0.04f, this.size.height - 5.dp.toPx()),
+                            size = Size(this.size.width * 0.92f, 12.dp.toPx()),
+                        )
+                    }
                     if (current && motion > 0f && (style.fxMode == FX_SHINE || style.fxMode == FX_IRIDESCENT)) {
                         drawSparkles(style.fxTint, fx, motion.coerceAtMost(1.5f), 14.dp.toPx())
                     }
@@ -647,7 +660,7 @@ private fun AeroTile(
                 .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         ) {
             if (trueCase) {
-                CaseCover(item, imageUrl, w, h, current, focused, style, fx)
+                CaseCover(item, imageUrl, w, h, current, focused, style, fx, realistic)
             } else {
                 GlassCover(item, imageUrl, w, h, radius, current, focused, style, fx)
             }
@@ -673,7 +686,7 @@ private fun AeroTile(
             ) {
                 Box(modifier = Modifier.requiredSize(w, h).graphicsLayer { scaleY = -1f }) {
                     if (trueCase) {
-                        CaseCover(item, imageUrl, w, h, current, false, style, null)
+                        CaseCover(item, imageUrl, w, h, current, false, style, null, realistic)
                     } else {
                         GlassCover(item, imageUrl, w, h, radius, current, false, style, null)
                     }

@@ -3591,6 +3591,8 @@
     <string name="shelf_unplayed">No jugados</string>
     <string name="shelf_custom">Personalizados</string>
     <string name="shelf_library">Biblioteca</string>
+    <string name="style_home_realistic">Realistic Fruit Boxes</string>
+    <string name="look_realistic_hint">Cajas de disco fotográficas: plástico azul grueso con clips, giradas como cajas en un estante, con sombras y reflejos sobre un piso brillante.</string>
     <string name="style_home_true">True Frutiger Aero (cajas de disco)</string>
     <string name="look_trueaero_hint">Las carátulas como cajas de disco AeroGame: plástico azul, lomo blanco, burbujas, agua y una etiqueta holográfica, sobre el fondo de agua.</string>
     <string name="aero_style_frame_color">Color del marco</string>

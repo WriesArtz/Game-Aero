@@ -3717,6 +3717,8 @@
     <string name="shelf_unplayed">Not played</string>
     <string name="shelf_custom">Custom</string>
     <string name="shelf_library">Library</string>
+    <string name="style_home_realistic">Realistic Fruit Boxes</string>
+    <string name="look_realistic_hint">Photographic jewel cases: thick blue plastic with clips, turned like cases on a shelf, with shadows and reflections on a glossy floor.</string>
     <string name="style_home_true">True Frutiger Aero (jewel cases)</string>
     <string name="look_trueaero_hint">Covers as AeroGame jewel cases: blue plastic, white spine, bubbles, water and a holographic sticker, over the water wallpaper.</string>
     <string name="aero_style_frame_color">Frame color</string>
