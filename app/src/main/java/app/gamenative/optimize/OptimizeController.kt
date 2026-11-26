@@ -443,7 +443,8 @@ object OptimizeController {
                         },
                     )
                     put("tried", JSONArray().apply { ladder.tried.forEach { put(it.toJson()) } })
-                    if (ladder.skipped.isNotEmpty()) put("skipped", JSONArray().apply { ladder.skipped.forEach { put(it.toJson()) } })
+                    val skipped = OptimizeCards.requestSkipped(state, ladder, System.currentTimeMillis())
+                    if (skipped.isNotEmpty()) put("skipped", JSONArray().apply { skipped.forEach { put(it.toJson()) } })
                     if (state.capPreferred) put("prefer", OptimizeLocalState.PREFER_CAP)
                 },
             )
@@ -884,7 +885,8 @@ object OptimizeController {
 
                     /**
                      * Takes one answer; true when its rung changed nothing and the next one may be asked for. [capAsked]: the
-                     * request said ladder.prefer "cap". A cap the user did not ask for ends the ladder; the cap stays a question.
+                     * request said ladder.prefer "cap". A cap the user did not ask for stays a question; once declined it is
+                     * listed as skipped and the next one may be asked for.
                      */
                     suspend fun take(result: NextRungResult?, fromPrefetch: PrefetchedRung?, capAsked: Boolean): Boolean {
                         when (result) {
@@ -923,11 +925,23 @@ object OptimizeController {
                                         val card = OptimizeCard(
                                             OptimizeCard.CAP, at, gameName(appId), profile, cls = baseline?.cls, metrics = baseline, capFps = capFps,
                                         )
-                                        state = state.copy(card = card)
+                                        state = state.copy(
+                                            card = card,
+                                            capQuestionRung = SkippedRung(unaskedCap.rungId, unaskedCap.version, OptimizeJudge.REASON_DECLINED),
+                                        )
                                         cardEvent(appId, OptimizeEvents.CAP_ASKED, state, card)
                                     }
+                                    unaskedCap != null && capChoice == OptimizeCards.UnaskedCap.SKIP -> {
+                                        // A no to the cap is not the end of the ladder: the server is asked for the step after it.
+                                        Timber.tag(TAG).i("Optimize: the cap ${unaskedCap.rungId} was not wanted; asking for the step after it")
+                                        ladder = ladder.copy(lastStatus = response.status)
+                                        state = state.copy(
+                                            capQuestionRung = SkippedRung(unaskedCap.rungId, unaskedCap.version, OptimizeJudge.REASON_DECLINED),
+                                        )
+                                        return true
+                                    }
                                     response.hasNothing || response.status == NextRungResponse.STATUS_EXHAUSTED || capChoice == OptimizeCards.UnaskedCap.END -> {
-                                        if (unaskedCap != null) Timber.tag(TAG).i("Optimize: only the cap ${unaskedCap.rungId} is left and was not wanted; the ladder ends here")
+                                        if (unaskedCap != null) Timber.tag(TAG).i("Optimize: the cap ${unaskedCap.rungId} is offered and the game is set to never; the ladder ends here")
                                         val endKind = if (response.hasNothing) OptimizeCard.NO_RULE else OptimizeCards.endCard(ladder)
                                         if (endKind == OptimizeCard.EXHAUSTED) {
                                             ladder = ladder.copy(state = LadderState.EXHAUSTED, lastStatus = NextRungResponse.STATUS_EXHAUSTED)
@@ -958,7 +972,7 @@ object OptimizeController {
                                     }
                                     else -> {
                                         ladder = ladder.copy(lastStatus = response.status)
-                                        val offered = response.rung?.takeIf { it.rungId !in ladder.bad }
+                                        val offered = response.rung
                                         val rung = offered?.takeUnless { ladder.repeats(it) }
                                         if (offered != null && rung == null) {
                                             Timber.tag(TAG).i("Optimize: skipping ${offered.rungId} v${offered.version}: ${ladder.repeatReason(offered)}")
@@ -1103,7 +1117,7 @@ object OptimizeController {
     /**
      * A pending step whose trial session started ([PendingRung.trialStartedAt]) but was never judged: its run record
      * is judged for a crash if it was written; with none, a hard death of the app since the session started, or a
-     * second unjudged launch, counts as a crash. A crash is finished like one judged at exit (reported, marked bad,
+     * second unjudged launch, counts as a crash. A crash is finished like one judged at exit (reported,
      * a worse card) and flagged to come off.
      */
     private fun judgeLostSession(
@@ -1356,6 +1370,12 @@ object OptimizeController {
                             windowWithoutStep = OptimizeJudge.windowWithoutStep(runsNewestFirst(container)) ?: pending.baseline?.windowSeen,
                         )
                         state = when (decision) {
+                            OptimizeJudge.Decision.TooShort -> {
+                                // No result: the step stays on trial, nothing is reported, and the card says how long to play.
+                                Timber.tag(TAG).i("Optimize: ${after.gameplaySec} s of gameplay is too short to judge ${pending.rung.rungId}; it stays on trial")
+                                state.withLadder(profile, ladder.copy(pending = pending))
+                                    .copy(card = OptimizeCard(OptimizeCard.SHORT, now, gameName(appId), profile, rungId = pending.rung.rungId, metrics = after))
+                            }
                             is OptimizeJudge.Decision.NoWindow -> {
                                 Timber.tag(TAG).i("Optimize: the game never showed its window with ${pending.rung.rungId} on trial (${decision.starts} in a row); no result yet")
                                 state.withLadder(profile, ladder.copy(pending = pending.copy(noWindowStarts = decision.starts))).queued(
@@ -1840,7 +1860,10 @@ object OptimizeController {
     suspend fun continueLadder(context: Context, appId: String): ChangeResult =
         change(context, appId, touchesFiles = false, what = "continuing") { _, _, state -> OptimizeLadders.resumed(state) to true }
 
-    /** Takes off the step a helped card was about; the ladder keeps trying, so the next launch asks again. */
+    /**
+     * Takes off the step a helped card was about, or the step still on trial a too-short card was about; the ladder
+     * keeps trying, so the next launch asks again.
+     */
     private suspend fun undoStep(
         context: Context,
         appId: String,
@@ -1851,6 +1874,14 @@ object OptimizeController {
     ): Pair<OptimizeLocalState, Boolean> {
         val profile = state.activeProfile ?: return (state to true)
         val ladder = state.ladder(profile)
+        val pending = ladder.pending
+        val undone = OptimizeLadders.undoneOnTrial(ladder, rungId)
+        if (pending != null && undone != null) {
+            if (!OptimizeReverter.revertLevers(context, container, pending.levers)) return state to false
+            store.dropRungDir(profile, pending.rung.rungId)
+            val report = undoReport(appId, profile, pending.rung.rungId, pending.rung.version, pending.baseline, pending.levers.size)
+            return state.queued(report).withLadder(profile, undone) to true
+        }
         val kept = ladder.kept.lastOrNull { it.rungId == rungId } ?: return (state to true)
         if (kept.applied && !OptimizeReverter.revertLevers(context, container, kept.levers)) return state to false
         store.dropRungDir(profile, kept.rungId)
@@ -1904,6 +1935,8 @@ object OptimizeController {
             when {
                 card.kind == OptimizeCard.CAP && action == OptimizeCards.ACTION_CAP -> holdCap(context, appId, container, store, state, card)
                 card.kind == OptimizeCard.CAP -> OptimizeCards.capDeclined(state, now) to true
+                // A too-short card only tells the player something; closing it changes nothing, and Undo takes the step off.
+                card.kind == OptimizeCard.SHORT && action != OptimizeCards.ACTION_UNDO -> current.copy(card = null) to true
                 else -> null
             }?.let { return@change it }
             when (action) {
