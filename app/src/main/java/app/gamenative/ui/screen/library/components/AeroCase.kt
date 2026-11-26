@@ -289,6 +289,20 @@ private fun DrawScope.drawFaceDecor(fx: AeroFx?, level: Float, motion: Float) {
             endY = h,
         ),
     )
+    // a splash of water curling up the left side and across the foot, as printed on the AeroGame discs
+    val splash = Path().apply {
+        moveTo(w * 0.1f, h * 0.04f)
+        cubicTo(w * 0.34f, h * 0.2f, w * -0.02f, h * 0.42f, w * 0.12f, h * 0.64f)
+        cubicTo(w * 0.2f, h * 0.8f, w * 0.38f, h * 0.9f, w * 0.7f, h * 0.9f)
+    }
+    drawPath(splash, Color.White.copy(alpha = (0.2f * a).coerceIn(0f, 1f)), style = Stroke(width = minOf(w, h) * 0.07f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+    drawPath(splash, Color(0xFFCFF3FF).copy(alpha = (0.45f * a).coerceIn(0f, 1f)), style = Stroke(width = minOf(w, h) * 0.03f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+    drawPath(splash, Color.White.copy(alpha = (0.85f * a).coerceIn(0f, 1f)), style = Stroke(width = minOf(w, h) * 0.008f + 1f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+    // droplets thrown off the splash
+    listOf(Offset(0.3f, 0.12f) to 0.014f, Offset(0.06f, 0.3f) to 0.01f, Offset(0.2f, 0.5f) to 0.012f, Offset(0.1f, 0.78f) to 0.016f, Offset(0.42f, 0.88f) to 0.012f)
+        .forEach { (p, r) ->
+            drawCircle(Color.White.copy(alpha = (0.55f * a).coerceIn(0f, 1f)), r * minOf(w, h), Offset(p.x * w, p.y * h))
+        }
     // bubbles over the art
     val bubbles = listOf(
         Triple(0.14f, 0.26f, 0.07f), Triple(0.86f, 0.2f, 0.085f), Triple(0.8f, 0.62f, 0.06f),
