@@ -1,6 +1,20 @@
 package app.gamenative.ui.screen.settings
 
 import androidx.compose.foundation.background
+import app.gamenative.ui.theme.FX_WATER
+import app.gamenative.ui.theme.FX_SHINE
+import app.gamenative.ui.theme.FX_SABER
+import app.gamenative.ui.theme.FX_IRIDESCENT
+import app.gamenative.ui.theme.FX_BUBBLES
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -167,6 +181,28 @@ internal fun AeroStyleControls(modifier: Modifier = Modifier) {
                 range = 0..200,
                 onChange = { v -> AeroStyle.update { it.copy(coverMotion = v) } },
             )
+            ChoiceRow(
+                label = stringResource(R.string.aero_style_fx_mode),
+                options = listOf(
+                    FX_SHINE to stringResource(R.string.fx_shine),
+                    FX_WATER to stringResource(R.string.fx_water),
+                    FX_SABER to stringResource(R.string.fx_saber),
+                    FX_BUBBLES to stringResource(R.string.fx_bubbles),
+                    FX_IRIDESCENT to stringResource(R.string.fx_iridescent),
+                ),
+                selected = style.fxMode,
+                onPick = { v -> AeroStyle.update { it.copy(fxMode = v) } },
+            )
+            SwatchRow(
+                label = stringResource(R.string.aero_style_fx_color),
+                selected = style.fxColor,
+                onPick = { c -> AeroStyle.update { it.copy(fxColor = c) } },
+            )
+            SwatchRow(
+                label = stringResource(R.string.aero_style_frame_color),
+                selected = style.frameColor,
+                onPick = { c -> AeroStyle.update { it.copy(frameColor = c) } },
+            )
             StyleSlider(
                 label = stringResource(R.string.aero_style_scale),
                 value = style.uiScale,
@@ -201,10 +237,12 @@ private fun StyleSlider(
 
 @Composable
 private fun SwatchRow(label: String, selected: Int, onPick: (Int) -> Unit) {
+    var wheelOpen by remember { mutableStateOf(false) }
+    val custom = selected != 0 && selected !in AeroSwatches
     Column {
         Text(text = label, style = MaterialTheme.typography.bodyMedium)
         Row(
-            modifier = Modifier.padding(top = 4.dp),
+            modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -217,6 +255,69 @@ private fun SwatchRow(label: String, selected: Int, onPick: (Int) -> Unit) {
             )
             AeroSwatches.forEach { argb ->
                 Swatch(color = Color(argb), chosen = selected == argb, label = null, onClick = { onPick(argb) })
+            }
+            // any color from the wheel; shows the chosen one when it is not one of the above
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (custom) {
+                            Brush.linearGradient(listOf(Color(selected), Color(selected)))
+                        } else {
+                            Brush.sweepGradient((0..6).map { Color.hsv((it * 60f) % 360f, 1f, 1f) })
+                        },
+                    )
+                    .border(
+                        width = if (custom) 3.dp else 1.dp,
+                        color = if (custom) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        shape = CircleShape,
+                    )
+                    .semantics { contentDescription = "custom" }
+                    .clickable { wheelOpen = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (!custom) Text(text = "+", style = MaterialTheme.typography.labelLarge, color = Color.White)
+            }
+        }
+    }
+    if (wheelOpen) {
+        ColorWheelDialog(
+            initial = selected,
+            onPick = {
+                onPick(it)
+                wheelOpen = false
+            },
+            onDismiss = { wheelOpen = false },
+        )
+    }
+}
+
+/** A row of choices to pick one from, scrolling sideways when they do not fit. */
+@Composable
+private fun ChoiceRow(label: String, options: List<Pair<Int, String>>, selected: Int, onPick: (Int) -> Unit) {
+    Column {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        Row(
+            modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { (id, name) ->
+                val chosen = id == selected
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (chosen) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .selectable(selected = chosen, role = Role.RadioButton, onClick = { onPick(id) })
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (chosen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         }
     }

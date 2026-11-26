@@ -12,6 +12,16 @@ import kotlinx.coroutines.flow.asStateFlow
 const val HOME_AERO = 0
 const val HOME_METRO = 1
 
+/** The glass covers drawn as jewel cases with a white spine, as on a boxed disc. */
+const val HOME_TRUE = 2
+
+/** The moving effect of the current cover. */
+const val FX_SHINE = 0
+const val FX_WATER = 1
+const val FX_SABER = 2
+const val FX_BUBBLES = 3
+const val FX_IRIDESCENT = 4
+
 /**
  * What the person chose for the dashboard glass and the size of the UI. Percentages are 100 for the stock look;
  * colors are ARGB ints where 0 means "automatic" (white glass, the theme's text, the theme's selection).
@@ -43,7 +53,16 @@ data class AeroStyleState(
     val coverReflection: Int = 100,
     /** Strength of the moving effects: rim, light sweep, pulse, sparkles and bubbles; 0 turns them off. */
     val coverMotion: Int = 100,
+    /** Color of the frame as ARGB; 0 = automatic. */
+    val frameColor: Int = 0,
+    /** Color of the moving effect and the halo of the current cover as ARGB; 0 = automatic. */
+    val fxColor: Int = 0,
+    /** Which moving effect the current cover has: one of the FX_ constants. */
+    val fxMode: Int = FX_SHINE,
 ) {
+    val frameTint: Color? get() = if (frameColor == 0) null else Color(frameColor)
+    val fxTint: Color? get() = if (fxColor == 0) null else Color(fxColor)
+
     /** [percent] as a factor, 1 at 100. */
     fun f(percent: Int): Float = percent / 100f
 
@@ -100,6 +119,9 @@ object AeroStyle {
         coverGlow = PrefManager.coverGlow,
         coverReflection = PrefManager.coverReflection,
         coverMotion = PrefManager.coverMotion,
+        frameColor = PrefManager.frameColor,
+        fxColor = PrefManager.fxColor,
+        fxMode = PrefManager.fxMode,
     )
 
     fun update(transform: (AeroStyleState) -> AeroStyleState) {
@@ -120,6 +142,9 @@ object AeroStyle {
         PrefManager.coverGlow = next.coverGlow
         PrefManager.coverReflection = next.coverReflection
         PrefManager.coverMotion = next.coverMotion
+        PrefManager.frameColor = next.frameColor
+        PrefManager.fxColor = next.fxColor
+        PrefManager.fxMode = next.fxMode
         _state.value = next
     }
 

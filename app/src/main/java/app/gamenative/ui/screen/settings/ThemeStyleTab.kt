@@ -38,6 +38,7 @@ import app.gamenative.ui.component.RingTextButton
 import app.gamenative.ui.theme.AeroStyle
 import app.gamenative.ui.theme.HOME_AERO
 import app.gamenative.ui.theme.HOME_METRO
+import app.gamenative.ui.theme.HOME_TRUE
 import app.gamenative.ui.theme.UiLook
 import app.gamenative.ui.theme.UiLooks
 import app.gamenative.utils.CoverArt
@@ -114,6 +115,15 @@ internal fun ThemeStyleTab(onMessage: (String) -> Unit, onWallpaper: () -> Unit)
                 classic = false
                 PrefManager.aeroHome = true
                 AeroStyle.update { it.copy(homeStyle = HOME_AERO) }
+            },
+        )
+        HomeOption(
+            label = stringResource(R.string.style_home_true),
+            selected = !classic && style.homeStyle == HOME_TRUE,
+            onSelect = {
+                classic = false
+                PrefManager.aeroHome = true
+                AeroStyle.update { it.copy(homeStyle = HOME_TRUE) }
             },
         )
         HomeOption(

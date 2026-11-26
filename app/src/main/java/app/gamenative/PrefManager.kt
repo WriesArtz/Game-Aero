@@ -2011,6 +2011,21 @@ object PrefManager {
         get() = getPref(COVER_MOTION, 100)
         set(value) = setPref(COVER_MOTION, value)
 
+    private val FRAME_COLOR = intPreferencesKey("frame_color")
+    var frameColor: Int
+        get() = getPref(FRAME_COLOR, 0)
+        set(value) = setPref(FRAME_COLOR, value)
+
+    private val FX_COLOR = intPreferencesKey("fx_color")
+    var fxColor: Int
+        get() = getPref(FX_COLOR, 0)
+        set(value) = setPref(FX_COLOR, value)
+
+    private val FX_MODE = intPreferencesKey("fx_mode")
+    var fxMode: Int
+        get() = getPref(FX_MODE, 0)
+        set(value) = setPref(FX_MODE, value)
+
     private val AERO_SELECTION = intPreferencesKey("aero_selection")
     var aeroSelection: Int
         get() = getPref(AERO_SELECTION, 0)

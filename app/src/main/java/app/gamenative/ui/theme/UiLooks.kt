@@ -35,6 +35,14 @@ object UiLooks {
             style = AeroStyleState(homeStyle = HOME_AERO),
         ),
         UiLook(
+            id = "trueaero",
+            name = "True Frutiger Aero",
+            hint = R.string.look_trueaero_hint,
+            themeName = "Frutiger Aero",
+            wallpaper = WallpaperMode.WATER,
+            style = AeroStyleState(homeStyle = HOME_TRUE),
+        ),
+        UiLook(
             id = "crystal",
             name = "Liquid Crystal",
             hint = R.string.look_crystal_hint,
@@ -137,6 +145,9 @@ object UiLooks {
                 coverGlow = it.coverGlow,
                 coverReflection = it.coverReflection,
                 coverMotion = it.coverMotion,
+                frameColor = it.frameColor,
+                fxColor = it.fxColor,
+                fxMode = it.fxMode,
             )
         }
         app.gamenative.PrefManager.aeroHome = true

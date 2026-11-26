@@ -86,6 +86,9 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import app.gamenative.ui.theme.AeroStyleState
+import app.gamenative.ui.theme.FX_IRIDESCENT
+import app.gamenative.ui.theme.FX_SHINE
+import app.gamenative.ui.theme.HOME_TRUE
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -129,42 +132,14 @@ private const val SELECTED_W = 1.4f
 private const val SELECTED_H = 1.17f
 private const val SELECTED_BANNER_W = 1.25f
 private const val COVER_RATIO = 0.775f
+
+/** A jewel case is nearly square: its face plus the spine on its left. */
+private const val CASE_RATIO = 1.08f
+private const val SELECTED_CASE = 1.25f
 private const val LIBRARY_KEY = "library"
 private const val SHELF_LIMIT = 30
 private const val LIGHT_BYTES = 5L * 1024 * 1024 * 1024
 private val FrameCyan = Color(0xFF5FE6FF)
-
-/**
- * The dashboard's running animations, shared by every cover so that one clock drives them all. The values are read
- * only while drawing, so a tick redraws the current cover instead of recomposing the screen.
- */
-private class AeroFx(val pulse: State<Float>, val shine: State<Float>, val spin: State<Float>, val drift: State<Float>)
-
-@Composable
-private fun rememberAeroFx(): AeroFx {
-    val clock = rememberInfiniteTransition(label = "aeroFx")
-    val pulse = clock.animateFloat(
-        0.8f, 1.2f,
-        infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "pulse",
-    )
-    val shine = clock.animateFloat(
-        0f, 1f,
-        infiniteRepeatable(tween(3200, easing = LinearEasing)),
-        label = "shine",
-    )
-    val spin = clock.animateFloat(
-        0f, 360f,
-        infiniteRepeatable(tween(7000, easing = LinearEasing)),
-        label = "spin",
-    )
-    val drift = clock.animateFloat(
-        0f, 1f,
-        infiniteRepeatable(tween(16000, easing = LinearEasing)),
-        label = "drift",
-    )
-    return remember(pulse, shine, spin, drift) { AeroFx(pulse, shine, spin, drift) }
-}
 
 /** One row of the dashboard: a title and the games under it. */
 private class Shelf(
@@ -322,17 +297,20 @@ internal fun AeroHomeScreen(
         val footer = (screenH * 0.12f).coerceIn(40.dp, 64.dp)
         val shelvesTop = screenH * 0.197f
         val tileH = (screenH * 0.235f).coerceAtLeast(72.dp)
-        val tileW = tileH * COVER_RATIO
+        val trueAero = style.homeStyle == HOME_TRUE
+        val tileW = tileH * (if (trueAero) CASE_RATIO else COVER_RATIO)
+        val selW = if (trueAero) SELECTED_CASE else SELECTED_W
+        val selH = if (trueAero) SELECTED_CASE else SELECTED_H
         val bannerH = tileH * 0.78f
         val bannerW = bannerH * 2.14f
         val gap = tileW * 0.115f
-        val rowHeight = tileH * SELECTED_H * 1.2f + 8.dp
+        val rowHeight = tileH * selH * 1.2f + 8.dp
         val pillHeight = (screenH * 0.075f).coerceIn(26.dp, 40.dp)
         val chevron = (screenH * 0.075f).coerceIn(28.dp, 40.dp)
         val logoHeight = (screenH * 0.15f).coerceIn(56.dp, 112.dp)
         val density = LocalDensity.current
         val tilePx = with(density) { tileW.toPx() }
-        val selectedPx = with(density) { (tileW * SELECTED_W).toPx() }
+        val selectedPx = with(density) { (tileW * selW).toPx() }
         val bannerSelectedPx = with(density) { (bannerW * SELECTED_BANNER_W).toPx() }
         val viewportPx = with(density) { screenW.toPx() }
 
@@ -612,10 +590,13 @@ private fun AeroTile(
     val focused by interaction.collectIsFocusedAsState()
     val style by AeroStyle.state.collectAsStateWithLifecycle()
     val sizeSpec = spring<Dp>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
-    val w by animateDpAsState(if (current) width * (if (wide) SELECTED_BANNER_W else SELECTED_W) else width, sizeSpec, label = "aeroTileW")
-    val h by animateDpAsState(if (current) height * SELECTED_H else height, sizeSpec, label = "aeroTileH")
-    val radius = minOf(w, h) * 0.17f
-    val glow = if (current) (style.selectionColor ?: FrameCyan) else FrameCyan
+    val trueCase = style.homeStyle == HOME_TRUE && !wide
+    val grow = if (wide) SELECTED_BANNER_W else if (trueCase) SELECTED_CASE else SELECTED_W
+    val growH = if (trueCase) SELECTED_CASE else SELECTED_H
+    val w by animateDpAsState(if (current) width * grow else width, sizeSpec, label = "aeroTileW")
+    val h by animateDpAsState(if (current) height * growH else height, sizeSpec, label = "aeroTileH")
+    val radius = minOf(w, h) * (if (trueCase) 0.05f else 0.17f)
+    val glow = if (current) (style.fxTint ?: style.selectionColor ?: FrameCyan) else (style.frameTint ?: FrameCyan)
     val glowLevel = style.f(style.coverGlow)
     val motion = style.f(style.coverMotion)
     val reflection = style.f(style.coverReflection)
@@ -657,28 +638,19 @@ private fun AeroTile(
                             cornerRadius = CornerRadius(radius.toPx() + spread / 2f),
                         )
                     }
-                    if (current && motion > 0f) {
-                        // four-point stars that twinkle in and out around the cover
-                        val tw = fx.spin.value * 0.0174533f
-                        for (i in 0 until 7) {
-                            val ang = i * 0.8975979f + tw * 0.25f
-                            val rx = this.size.width * 0.5f + 12.dp.toPx()
-                            val ry = this.size.height * 0.5f + 12.dp.toPx()
-                            val cx = this.size.width * 0.5f + kotlin.math.cos(ang) * rx
-                            val cy = this.size.height * 0.5f + kotlin.math.sin(ang) * ry
-                            val alpha = (kotlin.math.sin(tw * 3f + i * 1.3f) * 0.5f + 0.5f) * motion.coerceAtMost(1.5f)
-                            val r = (3.dp + 2.dp * (i % 3)).toPx()
-                            val c = Color.White.copy(alpha = alpha.coerceIn(0f, 1f))
-                            drawLine(c, Offset(cx - r, cy), Offset(cx + r, cy), strokeWidth = 1.5f.dp.toPx(), cap = StrokeCap.Round)
-                            drawLine(c, Offset(cx, cy - r), Offset(cx, cy + r), strokeWidth = 1.5f.dp.toPx(), cap = StrokeCap.Round)
-                        }
+                    if (current && motion > 0f && (style.fxMode == FX_SHINE || style.fxMode == FX_IRIDESCENT)) {
+                        drawSparkles(style.fxTint, fx, motion.coerceAtMost(1.5f), 14.dp.toPx())
                     }
                 }
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onFocusChanged { if (it.isFocused) onFocus() }
                 .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         ) {
-            GlassCover(item, imageUrl, w, h, radius, current, focused, style, fx)
+            if (trueCase) {
+                CaseCover(item, imageUrl, w, h, current, focused, style, fx)
+            } else {
+                GlassCover(item, imageUrl, w, h, radius, current, focused, style, fx)
+            }
         }
         // the mirror image on the floor: the bottom of the cover, flipped and faded out
         if (reflection > 0f) {
@@ -700,7 +672,11 @@ private fun AeroTile(
                 contentAlignment = Alignment.TopStart,
             ) {
                 Box(modifier = Modifier.requiredSize(w, h).graphicsLayer { scaleY = -1f }) {
-                    GlassCover(item, imageUrl, w, h, radius, current, false, style, null)
+                    if (trueCase) {
+                        CaseCover(item, imageUrl, w, h, current, false, style, null)
+                    } else {
+                        GlassCover(item, imageUrl, w, h, radius, current, false, style, null)
+                    }
                 }
             }
         } else {
@@ -726,6 +702,7 @@ private fun GlassCover(
     val frame = (minOf(w, h) * 0.022f * style.f(style.frameWidth)).coerceIn(1.dp, 14.dp)
     val frameAlpha = style.f(style.frameAlpha)
     val frameLight = style.f(style.frameLight)
+    val frameTone = style.frameTint ?: FrameCyan
     val fxLevel = style.f(style.coverFx)
     val motion = style.f(style.coverMotion)
     val nameText: @Composable () -> Unit = {
@@ -750,7 +727,7 @@ private fun GlassCover(
                 Brush.verticalGradient(
                     listOf(
                         Color.White.copy(alpha = (0.6f * frameLight * frameAlpha).coerceIn(0f, 1f)),
-                        FrameCyan.copy(alpha = (0.4f * frameLight * frameAlpha).coerceIn(0f, 1f)),
+                        frameTone.copy(alpha = (0.4f * frameLight * frameAlpha).coerceIn(0f, 1f)),
                     ),
                 ),
             )
@@ -760,7 +737,7 @@ private fun GlassCover(
                     Brush.verticalGradient(
                         listOf(
                             Color.White.copy(alpha = (frameAlpha * frameLight).coerceIn(0f, 1f)),
-                            FrameCyan.copy(alpha = ((if (current) 1f else 0.75f) * frameAlpha * frameLight).coerceIn(0f, 1f)),
+                            frameTone.copy(alpha = ((if (current) 1f else 0.75f) * frameAlpha * frameLight).coerceIn(0f, 1f)),
                         ),
                     ),
                 ),
@@ -769,33 +746,15 @@ private fun GlassCover(
             .drawWithContent {
                 drawContent()
                 if (fx != null && current && motion > 0f) {
-                    // a rim whose colors travel around the cover: cyan, white, pink and gold
-                    val t = (frame.toPx() + 1.5.dp.toPx())
-                    val corner = CornerRadius(radius.toPx())
-                    val ring = Path().apply {
-                        fillType = PathFillType.EvenOdd
-                        addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, size.width, size.height, corner))
-                        addRoundRect(
-                            androidx.compose.ui.geometry.RoundRect(
-                                t, t, size.width - t, size.height - t,
-                                CornerRadius((radius.toPx() - t).coerceAtLeast(0f)),
-                            ),
-                        )
-                    }
-                    clipPath(ring) {
-                        rotate(fx.spin.value) {
-                            drawCircle(
-                                brush = Brush.sweepGradient(
-                                    listOf(
-                                        Color(0xFF5FE6FF), Color.White, Color(0xFFFF9CE8),
-                                        Color(0xFFFFE08A), Color(0xFF5FE6FF),
-                                    ),
-                                ),
-                                radius = size.maxDimension,
-                                alpha = motion.coerceIn(0f, 1f),
-                            )
-                        }
-                    }
+                    drawRimEffect(
+                        mode = style.fxMode,
+                        color = style.fxTint,
+                        fx = fx,
+                        level = motion.coerceAtMost(1.5f),
+                        radius = radius.toPx(),
+                        inset = frame.toPx() * 0.5f + 1.dp.toPx(),
+                        thickness = (frame.toPx() + 1.5.dp.toPx()).coerceAtLeast(2.dp.toPx()),
+                    )
                 }
             }
             .padding(frame),
@@ -853,27 +812,7 @@ private fun GlassCover(
                         center = Offset(size.width * 0.16f, size.height * 0.09f),
                     )
                     if (fx != null && current && motion > 0f) {
-                        // a band of light that sweeps across the current cover
-                        val t = fx.shine.value
-                        val band = size.width * 0.32f
-                        val skew = size.height * 0.35f
-                        val x = (-0.5f + 2f * t) * size.width
-                        val sweep = Path().apply {
-                            moveTo(x + skew, 0f)
-                            lineTo(x + skew + band, 0f)
-                            lineTo(x + band, size.height)
-                            lineTo(x, size.height)
-                            close()
-                        }
-                        drawPath(
-                            path = sweep,
-                            brush = Brush.horizontalGradient(
-                                listOf(Color.Transparent, Color.White.copy(alpha = (0.5f * motion).coerceIn(0f, 1f)), Color.Transparent),
-                                startX = x,
-                                endX = x + band + skew,
-                            ),
-                            blendMode = BlendMode.Screen,
-                        )
+                        drawSurfaceEffect(style.fxMode, style.fxTint, fx, motion.coerceAtMost(1.5f))
                     }
                 },
             contentAlignment = Alignment.Center,
