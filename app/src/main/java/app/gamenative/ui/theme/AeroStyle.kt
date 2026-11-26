@@ -26,7 +26,27 @@ data class AeroStyleState(
     val uiScale: Int = 100,
     /** 0 = glass covers (Frutiger Aero), 1 = flat Metro tiles. */
     val homeStyle: Int = 0,
+    // the glass covers of the dashboard, in percent (100 = as designed)
+    /** How opaque the art of a cover is; less lets the glass show through. */
+    val coverArt: Int = 100,
+    /** Strength of the effects over the art: cyan light, gloss and inner glow. */
+    val coverFx: Int = 100,
+    /** How opaque the frame of a cover is. */
+    val frameAlpha: Int = 100,
+    /** Thickness of the frame. */
+    val frameWidth: Int = 100,
+    /** How bright the frame is. */
+    val frameLight: Int = 100,
+    /** Strength of the halo around the covers. */
+    val coverGlow: Int = 100,
+    /** Strength of the mirror image under the covers. */
+    val coverReflection: Int = 100,
+    /** Strength of the moving effects: rim, light sweep, pulse, sparkles and bubbles; 0 turns them off. */
+    val coverMotion: Int = 100,
 ) {
+    /** [percent] as a factor, 1 at 100. */
+    fun f(percent: Int): Float = percent / 100f
+
     val metro: Boolean get() = homeStyle == HOME_METRO
 
     val tintColor: Color get() = if (tint == 0) Color.White else Color(tint)
@@ -72,6 +92,14 @@ object AeroStyle {
         selection = PrefManager.aeroSelection,
         uiScale = PrefManager.uiScalePercent,
         homeStyle = PrefManager.homeStyle,
+        coverArt = PrefManager.coverArt,
+        coverFx = PrefManager.coverFx,
+        frameAlpha = PrefManager.frameAlpha,
+        frameWidth = PrefManager.frameWidth,
+        frameLight = PrefManager.frameLight,
+        coverGlow = PrefManager.coverGlow,
+        coverReflection = PrefManager.coverReflection,
+        coverMotion = PrefManager.coverMotion,
     )
 
     fun update(transform: (AeroStyleState) -> AeroStyleState) {
@@ -84,6 +112,14 @@ object AeroStyle {
         PrefManager.aeroSelection = next.selection
         PrefManager.uiScalePercent = next.uiScale
         PrefManager.homeStyle = next.homeStyle
+        PrefManager.coverArt = next.coverArt
+        PrefManager.coverFx = next.coverFx
+        PrefManager.frameAlpha = next.frameAlpha
+        PrefManager.frameWidth = next.frameWidth
+        PrefManager.frameLight = next.frameLight
+        PrefManager.coverGlow = next.coverGlow
+        PrefManager.coverReflection = next.coverReflection
+        PrefManager.coverMotion = next.coverMotion
         _state.value = next
     }
 

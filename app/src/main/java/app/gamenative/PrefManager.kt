@@ -1971,6 +1971,46 @@ object PrefManager {
         get() = getPref(AERO_TEXT, 0)
         set(value) = setPref(AERO_TEXT, value)
 
+    private val COVER_ART_ALPHA = intPreferencesKey("cover_art_alpha")
+    var coverArt: Int
+        get() = getPref(COVER_ART_ALPHA, 100)
+        set(value) = setPref(COVER_ART_ALPHA, value)
+
+    private val COVER_FX_ALPHA = intPreferencesKey("cover_fx_alpha")
+    var coverFx: Int
+        get() = getPref(COVER_FX_ALPHA, 100)
+        set(value) = setPref(COVER_FX_ALPHA, value)
+
+    private val FRAME_ALPHA = intPreferencesKey("frame_alpha")
+    var frameAlpha: Int
+        get() = getPref(FRAME_ALPHA, 100)
+        set(value) = setPref(FRAME_ALPHA, value)
+
+    private val FRAME_WIDTH = intPreferencesKey("frame_width")
+    var frameWidth: Int
+        get() = getPref(FRAME_WIDTH, 100)
+        set(value) = setPref(FRAME_WIDTH, value)
+
+    private val FRAME_LIGHT = intPreferencesKey("frame_light")
+    var frameLight: Int
+        get() = getPref(FRAME_LIGHT, 100)
+        set(value) = setPref(FRAME_LIGHT, value)
+
+    private val COVER_GLOW = intPreferencesKey("cover_glow")
+    var coverGlow: Int
+        get() = getPref(COVER_GLOW, 100)
+        set(value) = setPref(COVER_GLOW, value)
+
+    private val COVER_REFLECTION = intPreferencesKey("cover_reflection")
+    var coverReflection: Int
+        get() = getPref(COVER_REFLECTION, 100)
+        set(value) = setPref(COVER_REFLECTION, value)
+
+    private val COVER_MOTION = intPreferencesKey("cover_motion")
+    var coverMotion: Int
+        get() = getPref(COVER_MOTION, 100)
+        set(value) = setPref(COVER_MOTION, value)
+
     private val AERO_SELECTION = intPreferencesKey("aero_selection")
     var aeroSelection: Int
         get() = getPref(AERO_SELECTION, 0)

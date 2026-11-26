@@ -125,8 +125,20 @@ object UiLooks {
         val theme = BundledThemes.all.firstOrNull { it.name == look.themeName }
             ?: return Result.failure(IllegalStateException("bundled theme ${look.themeName} is missing"))
         val installed = ThemeManager.installBundled(theme)
-        // the person's UI scale stays as it is: it depends on the screen, not on the look
-        AeroStyle.update { look.style.copy(uiScale = it.uiScale) }
+        // the person's UI scale and cover options stay as they are: they are taste and screen, not part of the look
+        AeroStyle.update {
+            look.style.copy(
+                uiScale = it.uiScale,
+                coverArt = it.coverArt,
+                coverFx = it.coverFx,
+                frameAlpha = it.frameAlpha,
+                frameWidth = it.frameWidth,
+                frameLight = it.frameLight,
+                coverGlow = it.coverGlow,
+                coverReflection = it.coverReflection,
+                coverMotion = it.coverMotion,
+            )
+        }
         app.gamenative.PrefManager.aeroHome = true
         val asset = look.wallpaperAsset
         if (asset == null || WallpaperSettings.useBundled(context, asset).isFailure) {

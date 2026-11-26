@@ -3591,6 +3591,15 @@
     <string name="shelf_unplayed">No jugados</string>
     <string name="shelf_custom">Personalizados</string>
     <string name="shelf_library">Biblioteca</string>
+    <string name="cover_style_title">Carátulas</string>
+    <string name="cover_style_art">Opacidad de la carátula</string>
+    <string name="cover_style_fx">Efectos de la carátula (luz, brillo, resplandor interior)</string>
+    <string name="cover_style_frame_alpha">Opacidad del marco</string>
+    <string name="cover_style_frame_width">Grosor del marco</string>
+    <string name="cover_style_frame_light">Luminosidad del marco</string>
+    <string name="cover_style_glow">Halo alrededor de las carátulas</string>
+    <string name="cover_style_reflection">Reflejo bajo las carátulas</string>
+    <string name="cover_style_motion">Efectos en movimiento (0 los apaga)</string>
     <string name="shelf_favorites">Favoritos</string>
     <string name="shelf_recommended">Recomendados</string>
     <string name="shelf_toinstall">Por descargar</string>

@@ -114,6 +114,59 @@ internal fun AeroStyleControls(modifier: Modifier = Modifier) {
                 selected = style.selection,
                 onPick = { c -> AeroStyle.update { it.copy(selection = c) } },
             )
+            Text(
+                text = stringResource(R.string.cover_style_title),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_art),
+                value = style.coverArt,
+                range = 20..100,
+                onChange = { v -> AeroStyle.update { it.copy(coverArt = v) } },
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_fx),
+                value = style.coverFx,
+                range = 0..250,
+                onChange = { v -> AeroStyle.update { it.copy(coverFx = v) } },
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_frame_alpha),
+                value = style.frameAlpha,
+                range = 0..100,
+                onChange = { v -> AeroStyle.update { it.copy(frameAlpha = v) } },
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_frame_width),
+                value = style.frameWidth,
+                range = 30..300,
+                onChange = { v -> AeroStyle.update { it.copy(frameWidth = v) } },
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_frame_light),
+                value = style.frameLight,
+                range = 0..200,
+                onChange = { v -> AeroStyle.update { it.copy(frameLight = v) } },
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_glow),
+                value = style.coverGlow,
+                range = 0..250,
+                onChange = { v -> AeroStyle.update { it.copy(coverGlow = v) } },
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_reflection),
+                value = style.coverReflection,
+                range = 0..200,
+                onChange = { v -> AeroStyle.update { it.copy(coverReflection = v) } },
+            )
+            StyleSlider(
+                label = stringResource(R.string.cover_style_motion),
+                value = style.coverMotion,
+                range = 0..200,
+                onChange = { v -> AeroStyle.update { it.copy(coverMotion = v) } },
+            )
             StyleSlider(
                 label = stringResource(R.string.aero_style_scale),
                 value = style.uiScale,

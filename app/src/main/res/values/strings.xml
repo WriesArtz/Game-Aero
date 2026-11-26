@@ -3717,6 +3717,15 @@
     <string name="shelf_unplayed">Not played</string>
     <string name="shelf_custom">Custom</string>
     <string name="shelf_library">Library</string>
+    <string name="cover_style_title">Covers</string>
+    <string name="cover_style_art">Cover art opacity</string>
+    <string name="cover_style_fx">Cover effects (light, gloss, inner glow)</string>
+    <string name="cover_style_frame_alpha">Frame opacity</string>
+    <string name="cover_style_frame_width">Frame thickness</string>
+    <string name="cover_style_frame_light">Frame brightness</string>
+    <string name="cover_style_glow">Halo around covers</string>
+    <string name="cover_style_reflection">Reflection under covers</string>
+    <string name="cover_style_motion">Moving effects (0 turns them off)</string>
     <string name="shelf_favorites">Favorites</string>
     <string name="shelf_recommended">Recommended</string>
     <string name="shelf_toinstall">To download</string>

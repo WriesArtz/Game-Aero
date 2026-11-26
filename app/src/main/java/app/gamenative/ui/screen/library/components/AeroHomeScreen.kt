@@ -73,6 +73,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -207,6 +208,7 @@ internal fun AeroHomeScreen(
     var selectedId by remember { mutableStateOf<String?>(null) }
     var focusedShelf by remember { mutableStateOf<String?>(null) }
     val fx = rememberAeroFx()
+    val style by AeroStyle.state.collectAsStateWithLifecycle()
 
     val favorites by FavoritesManager.favorites.collectAsStateWithLifecycle()
     val titleRecent = stringResource(R.string.shelf_recent)
@@ -347,21 +349,43 @@ internal fun AeroHomeScreen(
             return@BoxWithConstraints
         }
 
-        // bubbles drifting up behind the covers
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val d = this.density
-            val t = fx.drift.value
-            for (i in 0 until 18) {
-                val seed = i * 0.6180339f
-                val x = ((seed * 7.3f) % 1f) * size.width
-                val speed = (1 + i % 3).toFloat()
-                val y = size.height * (1f - ((t * speed + seed) % 1f))
-                val r = (4f + (i % 4) * 4f) * d
-                val sway = kotlin.math.sin((t * 6.2831855f * speed) + i) * 10f * d
-                val a = 0.16f + (i % 3) * 0.06f
-                drawCircle(Color.White.copy(alpha = a * 0.5f), r, Offset(x + sway, y))
-                drawCircle(Color.White.copy(alpha = a + 0.1f), r, Offset(x + sway, y), style = Stroke(width = 1.2f * d))
-                drawCircle(Color.White.copy(alpha = a + 0.25f), r * 0.22f, Offset(x + sway - r * 0.35f, y - r * 0.35f))
+        // light rays and bubbles drifting behind the covers; the person can turn them down or off
+        val motionLevel = style.f(style.coverMotion)
+        if (motionLevel > 0f) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val d = this.density
+                val t = fx.drift.value
+                // soft slanted shafts of light that sway slowly, as under water
+                for (i in 0 until 4) {
+                    val sway = kotlin.math.sin((t * 6.2831855f) + i * 1.7f) * 0.05f
+                    val x = size.width * (0.12f + i * 0.26f + sway)
+                    val band = size.width * 0.09f
+                    val shaft = Path().apply {
+                        moveTo(x, 0f)
+                        lineTo(x + band, 0f)
+                        lineTo(x + band - size.height * 0.28f, size.height)
+                        lineTo(x - size.height * 0.28f, size.height)
+                        close()
+                    }
+                    drawPath(
+                        path = shaft,
+                        brush = Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = (0.1f * motionLevel).coerceAtMost(0.3f)), Color.Transparent),
+                        ),
+                    )
+                }
+                for (i in 0 until 18) {
+                    val seed = i * 0.6180339f
+                    val x = ((seed * 7.3f) % 1f) * size.width
+                    val speed = (1 + i % 3).toFloat()
+                    val y = size.height * (1f - ((t * speed + seed) % 1f))
+                    val r = (4f + (i % 4) * 4f) * d
+                    val sway = kotlin.math.sin((t * 6.2831855f * speed) + i) * 10f * d
+                    val a = (0.16f + (i % 3) * 0.06f) * motionLevel.coerceAtMost(1.6f)
+                    drawCircle(Color.White.copy(alpha = (a * 0.5f).coerceAtMost(1f)), r, Offset(x + sway, y))
+                    drawCircle(Color.White.copy(alpha = (a + 0.1f).coerceAtMost(1f)), r, Offset(x + sway, y), style = Stroke(width = 1.2f * d))
+                    drawCircle(Color.White.copy(alpha = (a + 0.25f).coerceAtMost(1f)), r * 0.22f, Offset(x + sway - r * 0.35f, y - r * 0.35f))
+                }
             }
         }
 
@@ -567,9 +591,10 @@ private fun ScrollButton(icon: ImageVector, size: Dp, modifier: Modifier, onClic
 }
 
 /**
- * One glass cover, slightly taller than wide: a thick frosted bezel with a white-to-cyan edge, the art inset in it
- * under a cool blue tint, a curved gloss across its top half, a soft halo, and a faded mirror image under it, as on
- * a glossy floor. The current game's cover is larger with a stronger glow; the focused one has a thicker edge.
+ * One glass cover, slightly taller than wide: a frame with a white-to-cyan edge, the art inset in it with its own
+ * colors, a light gloss across its top half and an inner glow, a soft halo, and a faded mirror image under it, as on a
+ * glossy floor. The current game's cover is larger, with a pulsing halo, an iridescent rim that turns, a band of light
+ * that sweeps across it, sparkles around it and a slow float. Every strength is the person's to set.
  */
 @Composable
 private fun AeroTile(
@@ -591,6 +616,9 @@ private fun AeroTile(
     val h by animateDpAsState(if (current) height * SELECTED_H else height, sizeSpec, label = "aeroTileH")
     val radius = minOf(w, h) * 0.17f
     val glow = if (current) (style.selectionColor ?: FrameCyan) else FrameCyan
+    val glowLevel = style.f(style.coverGlow)
+    val motion = style.f(style.coverMotion)
+    val reflection = style.f(style.coverReflection)
     // square art from SteamGridDB when the person has a key, else the store's cover cropped to the frame
     val tileContext = LocalContext.current
     val squareUrl by produceState<String?>(null, item.appId, wide) { value = if (wide) null else CoverArt.squareUrl(tileContext, item) }
@@ -600,24 +628,50 @@ private fun AeroTile(
         squareUrl ?: item.capsuleImageUrl.ifEmpty { item.headerImageUrl }
     }
     Column(
-        modifier = Modifier.zIndex(if (current) 1f else 0f),
+        modifier = Modifier
+            .zIndex(if (current) 1f else 0f)
+            // the current cover floats a little, slowly
+            .graphicsLayer {
+                translationY = if (current && motion > 0f) {
+                    kotlin.math.sin(fx.spin.value * 0.0174533f * 2f) * 3.dp.toPx() * motion.coerceAtMost(1.5f)
+                } else {
+                    0f
+                }
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
                 .width(w)
                 .height(h)
-                // the halo around the cover, outside its edge, in soft layers: faint on all of them, strong on the current one
+                // the halo around the cover, outside its edge, in soft layers, and sparkles around the current one
                 .drawBehind {
-                    val base = if (focused) 0.55f else if (current) 0.42f * fx.pulse.value else 0.2f
+                    val pulse = 1f + (fx.pulse.value - 1f) * motion
+                    val base = if (focused) 0.55f else if (current) 0.42f * pulse else 0.2f
                     for (layer in 0..3) {
                         val spread = ((if (current) 22.dp else 12.dp) * (layer + 1) / 4f).toPx()
                         drawRoundRect(
-                            color = glow.copy(alpha = base * (1f - layer * 0.22f) * 0.55f),
+                            color = glow.copy(alpha = (base * glowLevel * (1f - layer * 0.22f) * 0.55f).coerceIn(0f, 1f)),
                             topLeft = Offset(-spread / 2f, -spread / 2f),
                             size = Size(this.size.width + spread, this.size.height + spread),
                             cornerRadius = CornerRadius(radius.toPx() + spread / 2f),
                         )
+                    }
+                    if (current && motion > 0f) {
+                        // four-point stars that twinkle in and out around the cover
+                        val tw = fx.spin.value * 0.0174533f
+                        for (i in 0 until 7) {
+                            val ang = i * 0.8975979f + tw * 0.25f
+                            val rx = this.size.width * 0.5f + 12.dp.toPx()
+                            val ry = this.size.height * 0.5f + 12.dp.toPx()
+                            val cx = this.size.width * 0.5f + kotlin.math.cos(ang) * rx
+                            val cy = this.size.height * 0.5f + kotlin.math.sin(ang) * ry
+                            val alpha = (kotlin.math.sin(tw * 3f + i * 1.3f) * 0.5f + 0.5f) * motion.coerceAtMost(1.5f)
+                            val r = (3.dp + 2.dp * (i % 3)).toPx()
+                            val c = Color.White.copy(alpha = alpha.coerceIn(0f, 1f))
+                            drawLine(c, Offset(cx - r, cy), Offset(cx + r, cy), strokeWidth = 1.5f.dp.toPx(), cap = StrokeCap.Round)
+                            drawLine(c, Offset(cx, cy - r), Offset(cx, cy + r), strokeWidth = 1.5f.dp.toPx(), cap = StrokeCap.Round)
+                        }
                     }
                 }
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
@@ -627,29 +681,35 @@ private fun AeroTile(
             GlassCover(item, imageUrl, w, h, radius, current, focused, style, fx)
         }
         // the mirror image on the floor: the bottom of the cover, flipped and faded out
-        Box(
-            modifier = Modifier
-                .width(w)
-                .height(h * 0.2f)
-                .clipToBounds()
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(
-                        brush = Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent)),
-                        blendMode = BlendMode.DstIn,
-                    )
-                },
-            contentAlignment = Alignment.TopStart,
-        ) {
-            Box(modifier = Modifier.requiredSize(w, h).graphicsLayer { scaleY = -1f }) {
-                GlassCover(item, imageUrl, w, h, radius, current, false, style, null)
+        if (reflection > 0f) {
+            Box(
+                modifier = Modifier
+                    .width(w)
+                    .height(h * 0.2f)
+                    .clipToBounds()
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                listOf(Color.White.copy(alpha = (0.34f * reflection).coerceIn(0f, 1f)), Color.Transparent),
+                            ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    },
+                contentAlignment = Alignment.TopStart,
+            ) {
+                Box(modifier = Modifier.requiredSize(w, h).graphicsLayer { scaleY = -1f }) {
+                    GlassCover(item, imageUrl, w, h, radius, current, false, style, null)
+                }
             }
+        } else {
+            Spacer(modifier = Modifier.height(h * 0.2f))
         }
     }
 }
 
-/** The cover itself: bezel, art, tint and gloss. Drawn twice per tile, the second flipped as the reflection. */
+/** The cover itself: frame, art, light and gloss. Drawn twice per tile, the second flipped as the reflection. */
 @Composable
 private fun GlassCover(
     item: LibraryItem,
@@ -663,7 +723,11 @@ private fun GlassCover(
     fx: AeroFx?,
 ) {
     val shape = RoundedCornerShape(radius)
-    val frame = (minOf(w, h) * 0.022f).coerceIn(2.dp, 4.dp)
+    val frame = (minOf(w, h) * 0.022f * style.f(style.frameWidth)).coerceIn(1.dp, 14.dp)
+    val frameAlpha = style.f(style.frameAlpha)
+    val frameLight = style.f(style.frameLight)
+    val fxLevel = style.f(style.coverFx)
+    val motion = style.f(style.coverMotion)
     val nameText: @Composable () -> Unit = {
         Text(
             text = item.name,
@@ -681,20 +745,32 @@ private fun GlassCover(
             .width(w)
             .height(h)
             .clip(shape)
-            // the thick frosted bezel the art sits in
-            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.6f), FrameCyan.copy(alpha = 0.4f))))
+            // the frame the art sits in: frosted white at the top, cyan at the bottom
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = (0.6f * frameLight * frameAlpha).coerceIn(0f, 1f)),
+                        FrameCyan.copy(alpha = (0.4f * frameLight * frameAlpha).coerceIn(0f, 1f)),
+                    ),
+                ),
+            )
             .border(
                 BorderStroke(
                     if (focused) 3.dp else 1.5.dp,
-                    Brush.verticalGradient(listOf(Color.White, FrameCyan.copy(alpha = if (current) 1f else 0.75f))),
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = (frameAlpha * frameLight).coerceIn(0f, 1f)),
+                            FrameCyan.copy(alpha = ((if (current) 1f else 0.75f) * frameAlpha * frameLight).coerceIn(0f, 1f)),
+                        ),
+                    ),
                 ),
                 shape,
             )
             .drawWithContent {
                 drawContent()
-                if (fx != null && current) {
+                if (fx != null && current && motion > 0f) {
                     // a rim whose colors travel around the cover: cyan, white, pink and gold
-                    val t = 3.dp.toPx()
+                    val t = (frame.toPx() + 1.5.dp.toPx())
                     val corner = CornerRadius(radius.toPx())
                     val ring = Path().apply {
                         fillType = PathFillType.EvenOdd
@@ -716,6 +792,7 @@ private fun GlassCover(
                                     ),
                                 ),
                                 radius = size.maxDimension,
+                                alpha = motion.coerceIn(0f, 1f),
                             )
                         }
                     }
@@ -729,24 +806,26 @@ private fun GlassCover(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(inner)
-                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)), inner)
                 .drawWithContent {
                     drawContent()
-                    // a cyan light screened over the art: pale at the top, deep and bright at the bottom
+                    // a light cyan veil that only adds light, so the art keeps its own colors
                     drawRect(
                         brush = Brush.verticalGradient(
-                            listOf(Color(0xFF9CEBFF).copy(alpha = 0.5f), Color(0xFF1E9BFF).copy(alpha = 0.28f), Color(0xFF3FE0FF).copy(alpha = 0.62f)),
+                            listOf(
+                                Color(0xFFBFF3FF).copy(alpha = (0.16f * fxLevel).coerceIn(0f, 1f)),
+                                Color.Transparent,
+                                Color(0xFF3FE0FF).copy(alpha = (0.26f * fxLevel).coerceIn(0f, 1f)),
+                            ),
                         ),
                         blendMode = BlendMode.Screen,
                     )
                     // an inner glow along the edge, as if the pane were lit from within
-                    val glowAlpha = if (current) 0.9f else 0.6f
+                    val glowAlpha = (if (current) 0.8f else 0.5f) * fxLevel
                     for (i in 0..3) {
-                        val wide = (2f + i * 3.5f) * density
                         drawRoundRect(
-                            color = Color(0xFF7FF0FF).copy(alpha = glowAlpha / (i + 1.6f)),
+                            color = Color(0xFF7FF0FF).copy(alpha = (glowAlpha / (i + 1.6f)).coerceIn(0f, 1f)),
                             cornerRadius = CornerRadius(radius.toPx() - frame.toPx()),
-                            style = Stroke(width = wide * 2f),
+                            style = Stroke(width = (2f + i * 3.5f) * 2f * this.density),
                         )
                     }
                     // the curved gloss over the top half, like light on a pane of glass
@@ -760,13 +839,20 @@ private fun GlassCover(
                     drawPath(
                         path = gloss,
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.42f), Color.White.copy(alpha = 0.08f)),
+                            colors = listOf(
+                                Color.White.copy(alpha = (0.3f * fxLevel).coerceIn(0f, 1f)),
+                                Color.White.copy(alpha = (0.04f * fxLevel).coerceIn(0f, 1f)),
+                            ),
                             endY = size.height * 0.55f,
                         ),
                     )
                     // a small bright glint in the top-left corner
-                    drawCircle(Color.White.copy(alpha = 0.55f), radius = size.minDimension * 0.045f, center = Offset(size.width * 0.16f, size.height * 0.09f))
-                    if (fx != null && current) {
+                    drawCircle(
+                        Color.White.copy(alpha = (0.55f * fxLevel).coerceIn(0f, 1f)),
+                        radius = size.minDimension * 0.045f,
+                        center = Offset(size.width * 0.16f, size.height * 0.09f),
+                    )
+                    if (fx != null && current && motion > 0f) {
                         // a band of light that sweeps across the current cover
                         val t = fx.shine.value
                         val band = size.width * 0.32f
@@ -782,7 +868,7 @@ private fun GlassCover(
                         drawPath(
                             path = sweep,
                             brush = Brush.horizontalGradient(
-                                listOf(Color.Transparent, Color.White.copy(alpha = 0.5f), Color.Transparent),
+                                listOf(Color.Transparent, Color.White.copy(alpha = (0.5f * motion).coerceIn(0f, 1f)), Color.Transparent),
                                 startX = x,
                                 endX = x + band + skew,
                             ),
@@ -795,7 +881,7 @@ private fun GlassCover(
             if (imageUrl.isNotEmpty()) {
                 CoilImage(
                     imageModel = { imageUrl },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().alpha(style.f(style.coverArt)),
                     imageOptions = ImageOptions(contentScale = ContentScale.Crop, contentDescription = item.name),
                     loading = {},
                     failure = { nameText() },
