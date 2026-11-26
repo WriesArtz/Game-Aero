@@ -63,7 +63,7 @@ object OptimizeLadders {
 
     /**
      * [ladder] once [pending] was judged [result] for [reason]: the step is recorded as tried, kept at [judged] when it
-     * helped or could not be compared, otherwise flagged to come off; a crash also marks it bad.
+     * helped or could not be compared, otherwise flagged to come off.
      */
     fun afterJudged(ladder: ProfileLadder, pending: PendingRung, result: String, reason: String?, judged: Metrics): ProfileLadder {
         val rung = pending.rung
@@ -76,12 +76,24 @@ object OptimizeLadders {
                 baselineOverride = baselineAfterKeep(result, pending, judged, ladder.baselineOverride),
             )
         } else {
-            tried.copy(
-                pending = pending.copy(revert = result),
-                bad = if (result == OptimizeJudge.CRASH) (tried.bad + rung.rungId).distinct() else tried.bad,
-            )
+            tried.copy(pending = pending.copy(revert = result))
         }
         return next.copy(noChangeStreak = if (result == OptimizeJudge.NO_CHANGE) next.noChangeStreak + 1 else 0)
+    }
+
+    /**
+     * Undo of [rungId] while it is still on trial: it is recorded as tried with result undo, and the ladder keeps trying
+     * from the session before it. Null when that step is no longer on trial.
+     */
+    fun undoneOnTrial(ladder: ProfileLadder, rungId: String?): ProfileLadder? {
+        val pending = ladder.pending?.takeIf { it.revert == null && it.rung.rungId == rungId } ?: return null
+        return ladder.copy(
+            pending = null,
+            tried = (ladder.tried + TriedRung(pending.rung.rungId, pending.rung.version, OptimizeJudge.UNDO)).takeLast(OptimizeLocalState.MAX_TRIED),
+            state = LadderState.TRYING,
+            noChangeStreak = 0,
+            baselineOverride = pending.baseline ?: ladder.baselineOverride,
+        )
     }
 
     /** The baseline once every step is taken off: the session before the first of them. */
@@ -91,7 +103,7 @@ object OptimizeLadders {
     /**
      * The game once Restore took every change off: every goal starts over, with no tried history, no-change streak,
      * kept baseline or no-rule hold, and goals other than [profile] go idle. Steps that crashed or froze the game stay
-     * tried and bad, so they are never offered again. [profile] goes to [nextState] with [baseline], the session on the
+     * tried. [profile] goes to [nextState] with [baseline], the session on the
      * original settings.
      */
     fun restarted(state: OptimizeLocalState, profile: OptimizeProfile, nextState: LadderState, baseline: Metrics?): OptimizeLocalState {
@@ -160,7 +172,6 @@ object OptimizeTarget {
     const val BALANCED_MAX_STUTTER = 0.02
     const val QUALITY_MAX_STUTTER = 0.01
     const val POWER_MIN_GAMEPLAY_SEC = 1200
-    const val POTATO_FPS_TARGET = 30.0
     const val PERFORMANCE_FPS_SHARE = 0.97
     const val PERFORMANCE_WINDOW_SHARE = 0.95
     const val PERFORMANCE_FPS_CEILING = 60.0
@@ -216,16 +227,15 @@ object OptimizeTarget {
 
     /** True when the session after a step already reached what the profile asks for; inconclusive sessions are false. */
     fun met(profile: OptimizeProfile, after: Metrics, refreshHz: Double?, fpsCap: Int): Boolean {
-        val fps = after.steadyFps
         val stutter = after.stutterShare
         val heat = hot(after, refreshHz, fpsCap)
         return when (profile) {
-            OptimizeProfile.PERFORMANCE -> holdsTarget(after, refreshHz, fpsCap) && !heat
+            // Potato asks for what Performance asks for: the profiles differ in the order of their steps, not in when they are done.
+            OptimizeProfile.PERFORMANCE, OptimizeProfile.POTATO -> holdsTarget(after, refreshHz, fpsCap) && !heat
             // Balanced is done when the game would no longer be offered tuning: it holds its frame rate, cool and smooth.
             OptimizeProfile.BALANCED -> holdsTarget(after, refreshHz, fpsCap) && !heat && (stutter ?: 0.0) < BALANCED_MAX_STUTTER
             OptimizeProfile.QUALITY -> stutter != null && stutter < QUALITY_MAX_STUTTER
             OptimizeProfile.POWER -> after.gameplaySec >= POWER_MIN_GAMEPLAY_SEC && !heat
-            OptimizeProfile.POTATO -> (fps ?: 0.0) >= PERFORMANCE_FPS_SHARE * POTATO_FPS_TARGET
             OptimizeProfile.OFF -> false
         }
     }
@@ -394,18 +404,39 @@ object OptimizeCards {
 
     /**
      * What a launch does with a cap rung it did not ask for. [ASK]: raise the cap question and wait for the answer,
-     * the first time. [END]: the question was declined or cannot be asked, so the ladder ends here. [APPLY]: the
-     * server says the cap needs no question (ask_first false), so it is tried like any other step.
+     * the first time. [SKIP]: the question was declined or cannot be asked, so the server is asked for the step after
+     * the cap. [END]: the game is set to never. [APPLY]: the server says the cap needs no question (ask_first false),
+     * so it is tried like any other step.
      */
-    enum class UnaskedCap { ASK, END, APPLY }
+    enum class UnaskedCap { ASK, SKIP, END, APPLY }
 
-    /** No to the cap question: it is not asked again for a while. */
-    fun capDeclined(state: OptimizeLocalState, nowMillis: Long): OptimizeLocalState = state.copy(capSnoozedUntil = nowMillis + CAP_SNOOZE_MS)
+    /** No to the cap question: it is not asked again for a while, and a ladder that waited for the answer goes on. */
+    fun capDeclined(state: OptimizeLocalState, nowMillis: Long): OptimizeLocalState {
+        val snoozed = state.copy(capSnoozedUntil = nowMillis + CAP_SNOOZE_MS)
+        val profile = snoozed.activeProfile ?: return snoozed
+        val ladder = snoozed.ladder(profile)
+        if (ladder.state != LadderState.PAUSED || ladder.lastStatus != NextRungResponse.STATUS_CAP_QUESTION) return snoozed
+        return snoozed.withLadder(profile, ladder.copy(state = LadderState.TRYING))
+    }
 
     fun unaskedCap(state: OptimizeLocalState, rung: Rung, nowMillis: Long): UnaskedCap = when {
         rung.askFirst == false -> UnaskedCap.APPLY
-        state.never || nowMillis < state.capSnoozedUntil || capFps(rung.raw) == null -> UnaskedCap.END
+        state.never -> UnaskedCap.END
+        nowMillis < state.capSnoozedUntil || capFps(rung.raw) == null -> UnaskedCap.SKIP
         else -> UnaskedCap.ASK
+    }
+
+    /**
+     * The rungs a next-rung request lists as skipped: the ladder's own, and the declined cap while its question is
+     * snoozed, so the server answers with the step after it. A yes to the cap (ladder.prefer "cap") leaves it out.
+     */
+    fun requestSkipped(state: OptimizeLocalState, ladder: ProfileLadder, nowMillis: Long): List<SkippedRung> {
+        val declined = state.capQuestionRung?.takeIf { !state.capPreferred && nowMillis < state.capSnoozedUntil }
+        return if (declined == null || ladder.skipped.any { it.rungId == declined.rungId && it.version == declined.version }) {
+            ladder.skipped
+        } else {
+            ladder.skipped + declined
+        }
     }
 
     /**
