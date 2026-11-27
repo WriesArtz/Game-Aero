@@ -593,7 +593,7 @@ private fun AeroTile(
     val trueCase = style.cases && !wide
     val realistic = trueCase && style.realistic
     // in the realistic boxes the covers beside the current one are turned a little, like cases on a shelf
-    val tilt by animateFloatAsState(if (realistic && !current) 16f else 0f, spring(stiffness = Spring.StiffnessLow), label = "aeroTilt")
+    val tilt by animateFloatAsState(if (realistic && !current) 26f else 0f, spring(stiffness = Spring.StiffnessLow), label = "aeroTilt")
     val grow = if (wide) SELECTED_BANNER_W else if (trueCase) SELECTED_CASE else SELECTED_W
     val growH = if (trueCase) SELECTED_CASE else SELECTED_H
     val w by animateDpAsState(if (current) width * grow else width, sizeSpec, label = "aeroTileW")
@@ -617,7 +617,7 @@ private fun AeroTile(
             // the current cover floats a little, slowly
             .graphicsLayer {
                 rotationY = tilt
-                cameraDistance = 14f * density
+                cameraDistance = (if (realistic) 9f else 14f) * density
                 translationY = if (current && motion > 0f) {
                     kotlin.math.sin(fx.spin.value * 0.0174533f * 2f) * 3.dp.toPx() * motion.coerceAtMost(1.5f)
                 } else {

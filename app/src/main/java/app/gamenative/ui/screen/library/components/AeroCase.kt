@@ -159,6 +159,31 @@ internal fun CaseCover(
             .padding(bezel),
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
+            // realistic: the thickness of the case, seen on its near side as a slab of deep clear plastic
+            if (realistic) {
+                Box(
+                    modifier = Modifier
+                        .width(w * 0.055f)
+                        .fillMaxHeight()
+                        .drawWithContent {
+                            val deep = lerp(plastic, Color.Black, 0.55f)
+                            drawRect(
+                                Brush.horizontalGradient(
+                                    listOf(deep.copy(alpha = 0.95f), lerp(plastic, Color.White, 0.25f).copy(alpha = 0.9f), plastic.copy(alpha = 0.8f)),
+                                ),
+                            )
+                            // light caught on the outer corner and a second, softer reflection inside the plastic
+                            drawRect(Color.White.copy(alpha = 0.7f), Offset(size.width * 0.08f, 0f), Size(size.width * 0.1f, size.height))
+                            drawRect(Color.White.copy(alpha = 0.22f), Offset(size.width * 0.55f, 0f), Size(size.width * 0.12f, size.height))
+                            // thin ridges, like the moulded ribs along the side of a jewel case
+                            val ribs = 14
+                            for (i in 1 until ribs) {
+                                val y = size.height * i / ribs
+                                drawLine(Color.Black.copy(alpha = 0.18f), Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+                            }
+                        },
+                )
+            }
             // the spine: logo at the top, the name running up it, a disc at the bottom
             Box(
                 modifier = Modifier
@@ -359,10 +384,14 @@ private fun DrawScope.drawPlasticDetail(plastic: Color, bezel: Float, corner: Fl
     val deep = lerp(plastic, Color.Black, 0.45f)
     // the right wall of the case, seen as a thick strip of darker plastic with a bright edge
     drawRect(
-        brush = Brush.horizontalGradient(listOf(Color.Transparent, deep.copy(alpha = 0.7f)), startX = w - bezel * 2.4f, endX = w),
-        topLeft = Offset(w - bezel * 2.4f, corner),
-        size = Size(bezel * 2.4f, h - corner * 2f),
+        brush = Brush.horizontalGradient(listOf(Color.Transparent, deep.copy(alpha = 0.9f)), startX = w - bezel * 4.2f, endX = w),
+        topLeft = Offset(w - bezel * 4.2f, corner),
+        size = Size(bezel * 4.2f, h - corner * 2f),
     )
+    // the far side of the case falls into shade, the near side stays lit
+    drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.22f * level.coerceAtMost(1.5f)))))
+    // a bright bevel along the top edge, where the lid meets the wall
+    drawLine(Color.White.copy(alpha = 0.6f), Offset(corner, bezel * 0.35f), Offset(w - corner, bezel * 0.35f), strokeWidth = bezel * 0.2f)
     drawLine(Color.White.copy(alpha = 0.55f * level.coerceAtMost(1f)), Offset(w - bezel * 0.5f, corner), Offset(w - bezel * 0.5f, h - corner), strokeWidth = bezel * 0.18f)
     // the plastic gets deeper in blue towards the top and bottom edges
     drawRect(Brush.verticalGradient(listOf(deep.copy(alpha = 0.55f), Color.Transparent), endY = bezel * 2.2f))
