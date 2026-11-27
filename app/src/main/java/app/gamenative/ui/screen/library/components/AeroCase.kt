@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -70,6 +71,86 @@ internal fun CaseCover(
     style: AeroStyleState,
     fx: AeroFx?,
     realistic: Boolean = false,
+    /** 0..1: how much of the case's side is turned towards the viewer; the realistic boxes grow a thick wall with it. */
+    depth: Float = 0f,
+) {
+    if (!realistic) {
+        CaseFace(item, imageUrl, w, h, current, focused, style, fx, false, Modifier)
+        return
+    }
+    // the realistic case is a solid: its front face, the top face seen from a little above and the side wall that
+    // the turn shows, all of one clear blue plastic
+    val plastic = style.frameTint ?: Color(0xFF1E8CF0)
+    val d = w * 0.09f * depth
+    val ts = h * 0.04f
+    Box(
+        modifier = Modifier
+            .width(w)
+            .height(h)
+            .drawBehind {
+                val dp = d.toPx()
+                val tp = ts.toPx()
+                val fw = size.width - dp
+                val top = Path().apply {
+                    moveTo(0f, tp)
+                    lineTo(fw, tp)
+                    lineTo(fw + dp, 0f)
+                    lineTo(dp, 0f)
+                    close()
+                }
+                drawPath(
+                    top,
+                    Brush.verticalGradient(
+                        listOf(lerp(plastic, Color.White, 0.6f).copy(alpha = 0.95f), lerp(plastic, Color.White, 0.2f).copy(alpha = 0.9f)),
+                        startY = 0f,
+                        endY = tp,
+                    ),
+                )
+                if (dp > 0.5f) {
+                    val side = Path().apply {
+                        moveTo(fw, tp)
+                        lineTo(fw + dp, 0f)
+                        lineTo(fw + dp, size.height - tp)
+                        lineTo(fw, size.height)
+                        close()
+                    }
+                    drawPath(
+                        side,
+                        Brush.horizontalGradient(
+                            listOf(lerp(plastic, Color.White, 0.3f).copy(alpha = 0.95f), lerp(plastic, Color.Black, 0.6f).copy(alpha = 0.95f)),
+                            startX = fw,
+                            endX = fw + dp,
+                        ),
+                    )
+                    // the ribs moulded along the side of a jewel case
+                    for (i in 1 until 14) {
+                        val y = size.height * i / 14f
+                        drawLine(Color.Black.copy(alpha = 0.16f), Offset(fw, y), Offset(fw + dp, y - tp * (1f - i / 14f)), strokeWidth = 1f)
+                    }
+                    // light along the far edge and the near corner of the wall
+                    drawLine(Color.White.copy(alpha = 0.35f), Offset(fw + dp, 0f), Offset(fw + dp, size.height - tp), strokeWidth = 1.5f)
+                    drawLine(Color.White.copy(alpha = 0.75f), Offset(fw, tp), Offset(fw, size.height), strokeWidth = 2f)
+                }
+                drawLine(Color.White.copy(alpha = 0.4f), Offset(dp, 0f), Offset(fw + dp, 0f), strokeWidth = 1.5f)
+            },
+    ) {
+        CaseFace(item, imageUrl, w - d, h - ts, current, focused, style, fx, true, Modifier.align(Alignment.BottomStart))
+    }
+}
+
+/** The front of a jewel case with its spine; [modifier] places it. */
+@Composable
+private fun CaseFace(
+    item: LibraryItem,
+    imageUrl: String,
+    w: Dp,
+    h: Dp,
+    current: Boolean,
+    focused: Boolean,
+    style: AeroStyleState,
+    fx: AeroFx?,
+    realistic: Boolean,
+    modifier: Modifier,
 ) {
     val corner = minOf(w, h) * 0.05f
     val shape = RoundedCornerShape(corner)
@@ -94,7 +175,7 @@ internal fun CaseCover(
         )
     }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .width(w)
             .height(h)
             .clip(shape)
@@ -159,31 +240,6 @@ internal fun CaseCover(
             .padding(bezel),
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
-            // realistic: the thickness of the case, seen on its near side as a slab of deep clear plastic
-            if (realistic) {
-                Box(
-                    modifier = Modifier
-                        .width(w * 0.055f)
-                        .fillMaxHeight()
-                        .drawWithContent {
-                            val deep = lerp(plastic, Color.Black, 0.55f)
-                            drawRect(
-                                Brush.horizontalGradient(
-                                    listOf(deep.copy(alpha = 0.95f), lerp(plastic, Color.White, 0.25f).copy(alpha = 0.9f), plastic.copy(alpha = 0.8f)),
-                                ),
-                            )
-                            // light caught on the outer corner and a second, softer reflection inside the plastic
-                            drawRect(Color.White.copy(alpha = 0.7f), Offset(size.width * 0.08f, 0f), Size(size.width * 0.1f, size.height))
-                            drawRect(Color.White.copy(alpha = 0.22f), Offset(size.width * 0.55f, 0f), Size(size.width * 0.12f, size.height))
-                            // thin ridges, like the moulded ribs along the side of a jewel case
-                            val ribs = 14
-                            for (i in 1 until ribs) {
-                                val y = size.height * i / ribs
-                                drawLine(Color.Black.copy(alpha = 0.18f), Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
-                            }
-                        },
-                )
-            }
             // the spine: logo at the top, the name running up it, a disc at the bottom
             Box(
                 modifier = Modifier

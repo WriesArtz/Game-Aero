@@ -660,7 +660,7 @@ private fun AeroTile(
                 .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         ) {
             if (trueCase) {
-                CaseCover(item, imageUrl, w, h, current, focused, style, fx, realistic)
+                CaseCover(item, imageUrl, w, h, current, focused, style, fx, realistic, (tilt / 26f).coerceIn(0f, 1f))
             } else {
                 GlassCover(item, imageUrl, w, h, radius, current, focused, style, fx)
             }
@@ -686,7 +686,7 @@ private fun AeroTile(
             ) {
                 Box(modifier = Modifier.requiredSize(w, h).graphicsLayer { scaleY = -1f }) {
                     if (trueCase) {
-                        CaseCover(item, imageUrl, w, h, current, false, style, null, realistic)
+                        CaseCover(item, imageUrl, w, h, current, false, style, null, realistic, (tilt / 26f).coerceIn(0f, 1f))
                     } else {
                         GlassCover(item, imageUrl, w, h, radius, current, false, style, null)
                     }
