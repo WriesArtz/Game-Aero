@@ -262,6 +262,7 @@ internal fun AeroHomeScreen(
             override fun onSessionStarted(session: CastSession, sessionId: String) = Unit
             override fun onSessionStartFailed(session: CastSession, error: Int) = Unit
             override fun onSessionEnding(session: CastSession) = Unit
+            override fun onSessionSuspended(session: CastSession, reason: Int) = Unit
             override fun onSessionEnded(session: CastSession, error: Int) {
                 appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
             }
