@@ -149,7 +149,7 @@ internal class AeroTsMuxer {
         val pes = ByteArrayOutputStream()
         pes.write(0x00); pes.write(0x00); pes.write(0x01)
         pes.write(0xC0)
-        writeShort(pes, 3 + 5 + adts.size)
+        pes.writeShort(3 + 5 + adts.size)
         pes.write(0x80); pes.write(0x80); pes.write(0x05)
         writePts(pes, pts90k)
         pes.write(adts)
@@ -184,11 +184,6 @@ internal class AeroTsMuxer {
             output.write(packet)
             first = false
         }
-    }
-
-    private fun writeShort(out: ByteArrayOutputStream, value: Int) {
-        out.write((value shr 8) and 0xFF)
-        out.write(value and 0xFF)
     }
 
     private fun writePesPackets(pes: ByteArray, pts90k: Long, randomAccess: Boolean) {
