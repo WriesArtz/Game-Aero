@@ -1,6 +1,7 @@
 package app.gamenative.ui.screen.settings
 
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -118,6 +120,7 @@ internal fun ThemeSoundsTab(onMessage: (String) -> Unit) {
     val deleteFocus = remember { HashMap<String, FocusRequester>() }
     var refocusDelete by remember { mutableStateOf<String?>(null) }
     val importFocus = remember { FocusRequester() }
+    val customMusicFocus = remember { FocusRequester() }
 
     // Coming back from the file picker the window has no focused control; put it back on the import button.
     fun refocusImport() {
@@ -320,6 +323,36 @@ internal fun ThemeSoundsTab(onMessage: (String) -> Unit) {
                 onSelect = { runAction { SoundPackManager.setActiveMusicPack(null) } },
                 focusRequester = musicNoneFocus,
             )
+        }
+        item(key = "custom_music") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                ThemedOutlinedButton(
+                    onClick = { customMusicLauncher.launch(arrayOf("audio/*")) },
+                    modifier = Modifier
+                        .focusRequester(customMusicFocus)
+                        .focusOutline(CircleShape, ring = false),
+                ) {
+                    Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.themes_sounds_custom_choose))
+                }
+                if (settings.customMusicUri != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.themes_sounds_custom_selected),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        TextButton(onClick = { runAction { SoundPackManager.setCustomMusicUri(null) } }) {
+                            Text(stringResource(R.string.themes_sounds_custom_remove))
+                        }
+                    }
+                }
+            }
         }
         items(musicPacks, key = { "music:${it.id}" }) { pack ->
             SoundPackRow(
