@@ -10,7 +10,7 @@ import kotlin.math.ceil
 internal class AeroHlsSegmenter(
     private val targetDurationSeconds: Double = 1.0,
     private val windowSize: Int = 6,
-) : AeroVideoEncoder.Sink {
+) : AeroVideoEncoder.Sink, AeroAudioEncoder.Sink {
     private data class Segment(val bytes: ByteArray, val durationSeconds: Double)
 
     private val lock = Any()
@@ -21,6 +21,9 @@ internal class AeroHlsSegmenter(
     private var currentEndUs = -1L
     private var ptsBaseUs = -1L
     @Volatile private var hasFormat = false
+
+    /** Call before the first sample: the program table then announces an AAC track. */
+    fun enableAudio() = synchronized(lock) { muxer.hasAudio = true }
 
     override fun onFormat(sps: ByteArray, pps: ByteArray) {
         synchronized(lock) {
@@ -53,6 +56,15 @@ internal class AeroHlsSegmenter(
     }
 
     /** A segment lasts until the next key frame starts, so EXTINF matches the real timeline and the player does not drift. */
+    /** Audio rides in whichever segment is open; frames before the first key frame are dropped. */
+    override fun onAudio(aacFrame: ByteArray, ptsUs: Long) {
+        synchronized(lock) {
+            if (!hasFormat || ptsBaseUs < 0 || currentStartUs < 0) return
+            val pts = (ptsUs - ptsBaseUs).coerceAtLeast(currentStartUs)
+            muxer.writeAudio(aacFrame, pts)
+        }
+    }
+
     private fun flushSegmentLocked(endUs: Long) {
         val bytes = muxer.drain()
         val duration = ((endUs - currentStartUs).coerceAtLeast(1L)) / 1_000_000.0

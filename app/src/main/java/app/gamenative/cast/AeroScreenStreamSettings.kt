@@ -7,6 +7,7 @@ object AeroScreenStreamSettings {
     private const val PREFS = "aero_screen_stream"
     private const val KEY_RESOLUTION = "resolution"
     private const val KEY_ASPECT = "aspect"
+    private const val KEY_AUDIO = "audio"
 
     enum class Resolution(val height: Int, val bitrate: Int) {
         P480(480, 1_500_000),
@@ -29,6 +30,13 @@ object AeroScreenStreamSettings {
     fun aspectRatio(context: Context): AspectRatio =
         AspectRatio.entries.firstOrNull { it.name == prefs(context).getString(KEY_ASPECT, AspectRatio.ORIGINAL.name) }
             ?: AspectRatio.ORIGINAL
+
+    /** Whether the stream carries Game-Aero's own audio (needs the microphone permission Android uses for capture). */
+    fun audioEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_AUDIO, true)
+
+    fun setAudioEnabled(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_AUDIO, value).apply()
+    }
 
     fun setResolution(context: Context, value: Resolution) {
         prefs(context).edit().putString(KEY_RESOLUTION, value.name).apply()

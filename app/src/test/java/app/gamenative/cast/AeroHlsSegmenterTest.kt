@@ -44,6 +44,24 @@ class AeroHlsSegmenterTest {
         assertTrue(playlist.contains("#EXTINF:2.100,"))
     }
 
+    @Test
+    fun audioTrackIsAnnouncedAndCarriedOnItsOwnPid() {
+        val segmenter = AeroHlsSegmenter(targetDurationSeconds = 2.0, windowSize = 5)
+        segmenter.enableAudio()
+        segmenter.onFormat(
+            sps = byteArrayOf(0x67, 0x42, 0x00, 0x1F),
+            pps = byteArrayOf(0x68, 0xCE.toByte(), 0x06, 0xE2.toByte()),
+        )
+        val keyFrame = byteArrayOf(0x65, 0x88.toByte())
+        segmenter.onSample(listOf(keyFrame), 0L, true)
+        segmenter.onAudio(ByteArray(300) { 1 }, 20_000L)
+        segmenter.onSample(listOf(keyFrame), 2_100_000L, true)
+
+        val packets = requireNotNull(segmenter.segment(0)).asList().chunked(188)
+        assertTrue(packets.all { (it[0].toInt() and 0xFF) == 0x47 })
+        assertTrue(packets.any { pid(it) == 0x0101 })
+    }
+
     private fun newSegmenterWithTwoSegments(): AeroHlsSegmenter {
         val segmenter = AeroHlsSegmenter(targetDurationSeconds = 2.0, windowSize = 5)
         segmenter.onFormat(

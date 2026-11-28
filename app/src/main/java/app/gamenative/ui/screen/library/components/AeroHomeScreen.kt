@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.DisposableEffect
 import app.gamenative.cast.AeroScreenStreamService
+import app.gamenative.cast.AeroScreenStreamSettings
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.framework.CastContext
@@ -217,6 +218,14 @@ internal fun AeroHomeScreen(
         }
     }
 
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { _ ->
+        // granted or not, the stream still starts; without it the service falls back to video only
+        val manager = appContext.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        capturePermissionLauncher.launch(manager.createScreenCaptureIntent())
+    }
+
     DisposableEffect(appContext) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -256,6 +265,10 @@ internal fun AeroHomeScreen(
                             ?: appContext.getString(R.string.aero_cast_stream_error_generic)
                         Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
                     }
+                    AeroScreenStreamService.ACTION_STREAM_NOTICE -> {
+                        val message = intent.getStringExtra(AeroScreenStreamService.EXTRA_ERROR_MESSAGE) ?: return
+                        Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+                    }
                     AeroScreenStreamService.ACTION_STREAM_STOPPED -> isScreenStreaming = false
                 }
             }
@@ -264,6 +277,7 @@ internal fun AeroHomeScreen(
             addAction(AeroScreenStreamService.ACTION_STREAM_READY)
             addAction(AeroScreenStreamService.ACTION_STREAM_ERROR)
             addAction(AeroScreenStreamService.ACTION_STREAM_STOPPED)
+            addAction(AeroScreenStreamService.ACTION_STREAM_NOTICE)
         }
         ContextCompat.registerReceiver(appContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
@@ -297,8 +311,15 @@ internal fun AeroHomeScreen(
         if (!connected) {
             Toast.makeText(appContext, R.string.aero_cast_connect_first, Toast.LENGTH_LONG).show()
         } else {
-            val manager = appContext.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            capturePermissionLauncher.launch(manager.createScreenCaptureIntent())
+            val needsAudioPermission = AeroScreenStreamSettings.audioEnabled(appContext) &&
+                ContextCompat.checkSelfPermission(appContext, android.Manifest.permission.RECORD_AUDIO) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (needsAudioPermission) {
+                audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+            } else {
+                val manager = appContext.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                capturePermissionLauncher.launch(manager.createScreenCaptureIntent())
+            }
         }
     }
     val stopScreenStreaming: () -> Unit = {

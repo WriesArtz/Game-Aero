@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,6 +35,7 @@ internal fun AeroScreenStreamSettingsDialog(
 ) {
     var resolution by remember { mutableStateOf(AeroScreenStreamSettings.resolution(context)) }
     var ratio by remember { mutableStateOf(AeroScreenStreamSettings.aspectRatio(context)) }
+    var audio by remember { mutableStateOf(AeroScreenStreamSettings.audioEnabled(context)) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -88,6 +90,13 @@ internal fun AeroScreenStreamSettingsDialog(
                         )
                     }
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(context.getString(R.string.aero_cast_audio), modifier = Modifier.weight(1f))
+                    Switch(checked = audio, onCheckedChange = { audio = it })
+                }
                 Text(
                     text = if (isStreaming) {
                         context.getString(R.string.aero_cast_streaming)
@@ -105,6 +114,7 @@ internal fun AeroScreenStreamSettingsDialog(
                 TextButton(onClick = {
                     AeroScreenStreamSettings.setResolution(context, resolution)
                     AeroScreenStreamSettings.setAspectRatio(context, ratio)
+                    AeroScreenStreamSettings.setAudioEnabled(context, audio)
                     onStartStreaming()
                 }) { Text(context.getString(R.string.aero_cast_start)) }
             }
@@ -114,6 +124,7 @@ internal fun AeroScreenStreamSettingsDialog(
                 if (!isStreaming) {
                     AeroScreenStreamSettings.setResolution(context, resolution)
                     AeroScreenStreamSettings.setAspectRatio(context, ratio)
+                    AeroScreenStreamSettings.setAudioEnabled(context, audio)
                 }
                 onDismiss()
             }) { Text(context.getString(R.string.aero_cast_close)) }

@@ -4,7 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.Manifest
 import android.app.Service
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -31,6 +34,7 @@ class AeroScreenStreamService : Service() {
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var encoder: AeroVideoEncoder? = null
+    private var audioEncoder: AeroAudioEncoder? = null
     private var segmenter: AeroHlsSegmenter? = null
     private var httpServer: AeroHlsHttpServer? = null
     private val stopping = AtomicBoolean(false)
@@ -107,7 +111,23 @@ class AeroScreenStreamService : Service() {
 
         val liveSegmenter = AeroHlsSegmenter(targetDurationSeconds = 1.0, windowSize = 6)
         segmenter = liveSegmenter
-        val server = AeroHlsHttpServer(liveSegmenter, resolution, size.width, size.height)
+        // audio first, so the very first program table already lists the AAC track
+        val wantAudio = AeroScreenStreamSettings.audioEnabled(this) &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        var withAudio = false
+        if (wantAudio) {
+            val liveAudio = AeroAudioEncoder()
+            if (liveAudio.start(activeProjection, liveSegmenter)) {
+                audioEncoder = liveAudio
+                liveSegmenter.enableAudio()
+                withAudio = true
+            } else {
+                broadcastNotice(getString(R.string.aero_cast_audio_unavailable))
+            }
+        } else if (AeroScreenStreamSettings.audioEnabled(this)) {
+            broadcastNotice(getString(R.string.aero_cast_audio_denied))
+        }
+        val server = AeroHlsHttpServer(liveSegmenter, resolution, size.width, size.height, withAudio)
         httpServer = server
         server.start()
         val url = server.streamUrl
@@ -188,6 +208,14 @@ class AeroScreenStreamService : Service() {
         )
     }
 
+    private fun broadcastNotice(message: String) {
+        sendBroadcast(
+            Intent(ACTION_STREAM_NOTICE)
+                .setPackage(packageName)
+                .putExtra(EXTRA_ERROR_MESSAGE, message),
+        )
+    }
+
     private fun broadcastError(message: String) {
         sendBroadcast(
             Intent(ACTION_STREAM_ERROR)
@@ -200,6 +228,8 @@ class AeroScreenStreamService : Service() {
         if (!stopping.compareAndSet(false, true)) return
         runCatching { virtualDisplay?.release() }
         virtualDisplay = null
+        runCatching { audioEncoder?.stop() }
+        audioEncoder = null
         runCatching { encoder?.stop() }
         encoder = null
         runCatching { httpServer?.stop() }
@@ -229,6 +259,7 @@ class AeroScreenStreamService : Service() {
     companion object {
         const val ACTION_STREAM_READY = "app.gamenative.cast.STREAM_READY"
         const val ACTION_STREAM_ERROR = "app.gamenative.cast.STREAM_ERROR"
+        const val ACTION_STREAM_NOTICE = "app.gamenative.cast.STREAM_NOTICE"
         const val ACTION_STREAM_STOPPED = "app.gamenative.cast.STREAM_STOPPED"
         const val ACTION_STOP = "app.gamenative.cast.STOP"
         const val EXTRA_STREAM_URL = "stream_url"

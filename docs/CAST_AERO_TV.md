@@ -29,7 +29,7 @@ The phone and Chromecast must be on the same reachable local network. There is n
 - On Android 14 and later, the system picker allows the user to choose a single app window. The user should select Game-Aero. Earlier Android versions may only offer full-display sharing.
 - A persistent foreground notification shows while capture is active and includes a Stop action.
 - The virtual display, encoder, HTTP server, and projection are released when the user stops the stream, Android revokes the projection, or the Cast session ends.
-- The first implementation streams video only; device/app audio is not captured.
+- Audio: Game-Aero's own playback is captured with AudioPlaybackCapture (API 29+, own UID only), encoded as AAC-LC 48 kHz stereo and muxed as ADTS into the same MPEG-TS. It needs the RECORD_AUDIO permission; without it, or if the user switches audio off, the stream is video only.
 - The HTTP origin uses a random session token and is intended only for the local Wi-Fi/LAN connection.
 
 ## Known limitations / validation still required

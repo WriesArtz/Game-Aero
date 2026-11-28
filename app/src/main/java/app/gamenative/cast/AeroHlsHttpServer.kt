@@ -24,6 +24,7 @@ internal class AeroHlsHttpServer(
     private val resolution: AeroScreenStreamSettings.Resolution,
     private val width: Int,
     private val height: Int,
+    private val hasAudio: Boolean = false,
 ) {
     private val token = UUID.randomUUID().toString().replace("-", "")
     private var socket: ServerSocket? = null
@@ -104,7 +105,7 @@ internal class AeroHlsHttpServer(
                         val playlist = buildString {
                             append("#EXTM3U\n")
                             append("#EXT-X-VERSION:3\n")
-                            append("#EXT-X-STREAM-INF:BANDWIDTH=${resolution.bitrate},CODECS=\"avc1.42E0$level\",RESOLUTION=${width}x$height\n")
+                            append("#EXT-X-STREAM-INF:BANDWIDTH=${resolution.bitrate},CODECS=\"avc1.42E0$level${if (hasAudio) ",mp4a.40.2" else ""}\",RESOLUTION=${width}x$height\n")
                             append("media.m3u8\n")
                         }
                         respond(connection, 200, "OK", "application/x-mpegURL", playlist.toByteArray(), method == "HEAD")

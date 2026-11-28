@@ -10,6 +10,8 @@ import java.io.ByteArrayOutputStream
 internal class AeroTsMuxer {
     private val output = ByteArrayOutputStream(64 * 1024)
     private var videoContinuity = 0
+    private var audioContinuity = 0
+    var hasAudio = false
     private var pmtContinuity = 0
     private var patContinuity = 0
     private var sps: ByteArray? = null
@@ -78,7 +80,7 @@ internal class AeroTsMuxer {
     private fun writePmt() {
         val section = ByteArrayOutputStream().apply {
             write(0x02)
-            writeShort(0xB012) // section_length = 18: fixed body + one H.264 stream + CRC
+            writeShort(if (hasAudio) 0xB017 else 0xB012) // section_length: fixed body + 5 per stream + CRC
             writeShort(0x0001)
             write(0xC1)
             write(0x00)
@@ -88,6 +90,11 @@ internal class AeroTsMuxer {
             write(0x1B) // H.264
             writeShort(0xE000 or VIDEO_PID)
             writeShort(0xF000)
+            if (hasAudio) {
+                write(0x0F) // AAC in ADTS
+                writeShort(0xE000 or AUDIO_PID)
+                writeShort(0xF000)
+            }
         }.toByteArray()
         writeSection(PMT_PID, appendCrc(section), pmtContinuity)
         pmtContinuity = (pmtContinuity + 1) and 0x0F
@@ -124,6 +131,64 @@ internal class AeroTsMuxer {
         writePts(pes, pts90k)
         pes.write(elementary.toByteArray())
         writePesPackets(pes.toByteArray(), pcr90k, randomAccess)
+    }
+
+    fun writeAudio(aac: ByteArray, ptsUs: Long) {
+        val adts = ByteArray(7 + aac.size)
+        val length = adts.size
+        adts[0] = 0xFF.toByte()
+        adts[1] = 0xF1.toByte() // MPEG-4, no CRC
+        adts[2] = ((1 shl 6) or (3 shl 2) or 0).toByte() // AAC-LC, 48 kHz, channel config high bit
+        adts[3] = ((2 shl 6) or ((length shr 11) and 0x03)).toByte() // stereo
+        adts[4] = ((length shr 3) and 0xFF).toByte()
+        adts[5] = (((length and 0x07) shl 5) or 0x1F).toByte()
+        adts[6] = 0xFC.toByte()
+        System.arraycopy(aac, 0, adts, 7, aac.size)
+
+        val pts90k = (ptsUs * 9L) / 100L + PTS_DELAY_90K
+        val pes = ByteArrayOutputStream()
+        pes.write(0x00); pes.write(0x00); pes.write(0x01)
+        pes.write(0xC0)
+        writeShort(pes, 3 + 5 + adts.size)
+        pes.write(0x80); pes.write(0x80); pes.write(0x05)
+        writePts(pes, pts90k)
+        pes.write(adts)
+        writeAudioPackets(pes.toByteArray())
+    }
+
+    private fun writeAudioPackets(pes: ByteArray) {
+        var offset = 0
+        var first = true
+        while (offset < pes.size) {
+            val remaining = pes.size - offset
+            val take = minOf(remaining, 184)
+            val packet = ByteArray(188) { 0xFF.toByte() }
+            packet[0] = 0x47
+            packet[1] = ((if (first) 0x40 else 0x00) or ((AUDIO_PID shr 8) and 0x1F)).toByte()
+            packet[2] = (AUDIO_PID and 0xFF).toByte()
+            var payloadOffset = 4
+            if (take < 184) {
+                packet[3] = (0x30 or audioContinuity).toByte()
+                val adaptationLength = 183 - take
+                packet[payloadOffset++] = adaptationLength.toByte()
+                if (adaptationLength > 0) {
+                    packet[payloadOffset++] = 0x00
+                    while (payloadOffset < 5 + adaptationLength) packet[payloadOffset++] = 0xFF.toByte()
+                }
+            } else {
+                packet[3] = (0x10 or audioContinuity).toByte()
+            }
+            audioContinuity = (audioContinuity + 1) and 0x0F
+            System.arraycopy(pes, offset, packet, payloadOffset, take)
+            offset += take
+            output.write(packet)
+            first = false
+        }
+    }
+
+    private fun writeShort(out: ByteArrayOutputStream, value: Int) {
+        out.write((value shr 8) and 0xFF)
+        out.write(value and 0xFF)
     }
 
     private fun writePesPackets(pes: ByteArray, pts90k: Long, randomAccess: Boolean) {
@@ -215,6 +280,7 @@ internal class AeroTsMuxer {
         private const val PAT_PID = 0x0000
         private const val PMT_PID = 0x1000
         private const val VIDEO_PID = 0x0100
+        private const val AUDIO_PID = 0x0101
         /** 200 ms at 90 kHz between the clock reference and the presentation time. */
         private const val PTS_DELAY_90K = 18_000L
         private val AUD = byteArrayOf(0x09, 0xF0.toByte())
