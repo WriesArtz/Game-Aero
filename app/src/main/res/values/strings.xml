@@ -3762,4 +3762,15 @@
     <string name="covers_save">Save and fetch covers</string>
     <string name="covers_saved">Key saved; covers will appear as they are found</string>
     <string name="aero_cast_receiver_status">Cast foundation added. The custom TV dashboard receiver is not ready yet.</string>
+    <string name="aero_cast_settings_title">Screen casting settings</string>
+    <string name="aero_cast_resolution">Stream resolution</string>
+    <string name="aero_cast_480p">480p (lower bandwidth)</string>
+    <string name="aero_cast_720p">720p (balanced)</string>
+    <string name="aero_cast_1080p">1080p (higher quality)</string>
+    <string name="aero_cast_aspect">Aspect ratio</string>
+    <string name="aero_cast_aspect_original">Original (keep app ratio)</string>
+    <string name="aero_cast_settings_pending">These preferences are saved for the screen-streaming implementation. Screen streaming is not available yet.</string>
+    <string name="aero_cast_save">Save</string>
+    <string name="aero_cast_cancel">Cancel</string>
+    <string name="aero_cast_button">Screen cast settings</string>
 </resources>
