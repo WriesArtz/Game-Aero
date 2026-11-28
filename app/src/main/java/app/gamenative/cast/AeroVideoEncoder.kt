@@ -38,6 +38,7 @@ internal class AeroVideoEncoder(
             setInteger(MediaFormat.KEY_FRAME_RATE, fps)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, keyFrameIntervalSeconds)
             setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
+            setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1_000_000L / fps)
         }
 
         val created = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
@@ -65,6 +66,7 @@ internal class AeroVideoEncoder(
                 }
             }
         } catch (error: Throwable) {
+            runCatching { if (::inputSurface.isInitialized) inputSurface.release() }
             runCatching { created.release() }
             throw error
         }
