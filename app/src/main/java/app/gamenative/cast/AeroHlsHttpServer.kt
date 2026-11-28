@@ -87,11 +87,8 @@ internal class AeroHlsHttpServer(
                 val resource = path.removePrefix(base)
                 when {
                     resource == "master.m3u8" -> {
-                        val level = when (resolution) {
-                            AeroScreenStreamSettings.Resolution.P480 -> "1E"
-                            AeroScreenStreamSettings.Resolution.P720 -> "1F"
-                            AeroScreenStreamSettings.Resolution.P1080 -> "28"
-                        }
+                        val macroblocksPerSecond = ((width + 15) / 16) * ((height + 15) / 16) * 30
+                        val level = if (macroblocksPerSecond > 108_000) "28" else "1F"
                         val playlist = buildString {
                             append("#EXTM3U\n")
                             append("#EXT-X-VERSION:3\n")
