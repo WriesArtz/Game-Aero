@@ -234,6 +234,8 @@ internal fun AeroHomeScreen(
                                 .setContentType("application/x-mpegURL")
                                 .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
                                 .build()
+                            isScreenStreaming = true
+                            Toast.makeText(appContext, R.string.aero_cast_streaming, Toast.LENGTH_SHORT).show()
                             remoteClient.load(MediaLoadRequestData.Builder().setMediaInfo(media).build())
                                 .setResultCallback { loadResult ->
                                     if (!loadResult.status.isSuccess) {
@@ -246,8 +248,6 @@ internal fun AeroHomeScreen(
                                         ).show()
                                     }
                                 }
-                            isScreenStreaming = true
-                            Toast.makeText(appContext, R.string.aero_cast_streaming, Toast.LENGTH_SHORT).show()
                         }
                     }
                     AeroScreenStreamService.ACTION_STREAM_ERROR -> {
