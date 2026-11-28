@@ -1375,6 +1375,10 @@
     <string name="themes_sounds_music_subtitle">Reproduce música mientras navegas por la app</string>
     <string name="themes_sounds_music_volume">Volumen de la música</string>
     <string name="themes_sounds_music_volume_subtitle">Volumen de la música del menú</string>
+    <string name="themes_sounds_custom_choose">Elegir archivo MP3/WAV</string>
+    <string name="themes_sounds_custom_selected">Música personalizada seleccionada</string>
+    <string name="themes_sounds_custom_remove">Quitar</string>
+    <string name="themes_sounds_custom_invalid">Selecciona un archivo de audio MP3 o WAV.</string>
     <string name="themes_sounds_music_pack">Paquete de música</string>
     <string name="themes_sounds_no_music">Aún no hay paquetes de música instalados.</string>
     <string name="themes_sounds_import">Importar zip de paquete</string>
