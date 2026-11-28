@@ -1,13 +1,20 @@
-# Google Cast / Aero TV integration
+# Screen mirroring to TV
 
-## Current sender-side groundwork
+## Goal
 
-The `frutiger-dashboard` branch includes the Google Cast Android Sender SDK, a Cast options provider, and a Cast device-picker control in the Aero dashboard.
+Game-Aero should mirror the app's visible UI to a Chromecast/Google Cast receiver, rather than render a separate dashboard. The stream should be a live video image of the current Game-Aero screen.
 
-At this stage, the sender uses Google's Default Media Receiver (`CC1AD845`). This verifies the sender integration path and device picker, but it **does not mirror Game-Aero's custom dashboard to the TV**.
+## Preferences added
 
-## Next phase: custom Aero receiver
+The Aero dashboard now opens a screen-streaming settings dialog from the Cast icon. It stores these preferences locally:
 
-A dashboard receiver requires a registered Custom Web Receiver application in the Google Cast SDK Developer Console and its application ID. The receiver should be a hosted HTML/JavaScript app that renders a TV-sized Aero interface. Once registered and hosted, replace the default receiver ID in `AeroCastOptionsProvider` and add the custom Cast message channel for dashboard state/game selection.
+- Stream resolution: 480p, 720p, or 1080p (default 720p)
+- Aspect ratio: Original, 16:9, 4:3, or 21:9 (default Original)
 
-Phone-to-TV dashboard casting and full phone/game screen mirroring are separate features. This integration is for a custom TV dashboard, not game video mirroring.
+These settings are groundwork only: the capture/encoding/transport pipeline has not yet been integrated, so the app cannot currently start a screen stream from this button. Preferences are not applied to the app's regular display size or game rendering.
+
+## Implementation direction
+
+Use Android MediaProjection with user consent for capture, and create a virtual display at the requested output dimensions. Maintain the app image without distortion by default; explicit ratio modes should letterbox/crop only in the stream output, not change the phone UI. Chromecast needs a receiver-compatible live-video transport. The existing Cast Sender SDK media button is not screen mirroring and was replaced in the Aero dashboard with the settings entry point.
+
+Screen capture must use Android's consent flow and stop when the user ends the session. Stream access should be limited to the local Wi-Fi path and protected by a per-session token.
