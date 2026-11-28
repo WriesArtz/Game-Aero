@@ -3761,4 +3761,5 @@
     <string name="covers_key">SteamGridDB API key</string>
     <string name="covers_save">Save and fetch covers</string>
     <string name="covers_saved">Key saved; covers will appear as they are found</string>
+    <string name="aero_cast_receiver_status">Cast foundation added. The custom TV dashboard receiver is not ready yet.</string>
 </resources>
