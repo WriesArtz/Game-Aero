@@ -147,7 +147,7 @@ class AeroScreenStreamService : Service() {
                 stopSelf()
             }
         }
-        Timber.i("Aero stream started: ${size.width}x${size.height} at $url")
+        Timber.i("Aero stream encoder started: ${size.width}x${size.height}")
     }
 
     private fun buildNotification(): Notification {
