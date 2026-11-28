@@ -105,7 +105,7 @@ class AeroScreenStreamService : Service() {
         val size = AeroScreenStreamSettings.outputSize(this, resolution, aspect)
         val densityDpi = resources.displayMetrics.densityDpi.coerceAtLeast(DisplayMetrics.DENSITY_DEFAULT)
 
-        val liveSegmenter = AeroHlsSegmenter(targetDurationSeconds = 2.0, windowSize = 5)
+        val liveSegmenter = AeroHlsSegmenter(targetDurationSeconds = 1.0, windowSize = 6)
         segmenter = liveSegmenter
         val server = AeroHlsHttpServer(liveSegmenter, resolution, size.width, size.height)
         httpServer = server

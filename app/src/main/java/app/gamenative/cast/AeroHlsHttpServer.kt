@@ -10,6 +10,9 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.util.Collections
 import java.util.UUID
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import kotlin.concurrent.thread
 
 /**
@@ -25,6 +28,7 @@ internal class AeroHlsHttpServer(
     private val token = UUID.randomUUID().toString().replace("-", "")
     private var socket: ServerSocket? = null
     private var boundAddress: String? = null
+    private var pool: ExecutorService? = null
     @Volatile private var running = false
 
     val streamUrl: String
@@ -42,12 +46,18 @@ internal class AeroHlsHttpServer(
         server.bind(InetSocketAddress(address, 0), 12)
         boundAddress = address
         socket = server
+        val workers = Executors.newFixedThreadPool(6) { task -> Thread(task, "aero-hls-client").apply { isDaemon = true } }
+        pool = workers
         running = true
         thread(name = "aero-hls-http", isDaemon = true) {
             while (running) {
                 try {
                     val client = server.accept()
-                    thread(name = "aero-hls-client", isDaemon = true) { serve(client) }
+                    try {
+                        workers.execute { serve(client) }
+                    } catch (_: RejectedExecutionException) {
+                        runCatching { client.close() }
+                    }
                 } catch (error: Throwable) {
                     if (running) android.util.Log.w("AeroHlsServer", "HTTP accept failed", error)
                 }
@@ -59,6 +69,8 @@ internal class AeroHlsHttpServer(
         client.use { connection ->
             runCatching {
                 connection.soTimeout = 5_000
+                connection.tcpNoDelay = true
+                connection.sendBufferSize = 256 * 1024
                 val reader = BufferedReader(InputStreamReader(connection.getInputStream(), StandardCharsets.US_ASCII))
                 val requestLine = reader.readLine() ?: return
                 val parts = requestLine.split(' ')
@@ -161,6 +173,8 @@ internal class AeroHlsHttpServer(
 
     fun stop() {
         running = false
+        runCatching { pool?.shutdownNow() }
+        pool = null
         runCatching { socket?.close() }
         socket = null
         boundAddress = null

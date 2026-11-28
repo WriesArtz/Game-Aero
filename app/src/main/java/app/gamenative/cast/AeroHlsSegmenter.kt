@@ -8,8 +8,8 @@ import kotlin.math.ceil
  * ddagunts/ScreenCast (Apache-2.0). Keeps a short rolling window in memory.
  */
 internal class AeroHlsSegmenter(
-    private val targetDurationSeconds: Double = 2.0,
-    private val windowSize: Int = 5,
+    private val targetDurationSeconds: Double = 1.0,
+    private val windowSize: Int = 6,
 ) : AeroVideoEncoder.Sink {
     private data class Segment(val bytes: ByteArray, val durationSeconds: Double)
 
@@ -38,7 +38,7 @@ internal class AeroHlsSegmenter(
             if (isKeyFrame && currentStartUs >= 0 &&
                 (pts - currentStartUs) / 1_000_000.0 >= targetDurationSeconds
             ) {
-                flushSegmentLocked()
+                flushSegmentLocked(endUs = pts)
             }
 
             if (currentStartUs < 0) {
@@ -52,9 +52,10 @@ internal class AeroHlsSegmenter(
         }
     }
 
-    private fun flushSegmentLocked() {
+    /** A segment lasts until the next key frame starts, so EXTINF matches the real timeline and the player does not drift. */
+    private fun flushSegmentLocked(endUs: Long) {
         val bytes = muxer.drain()
-        val duration = ((currentEndUs - currentStartUs).coerceAtLeast(1L)) / 1_000_000.0
+        val duration = ((endUs - currentStartUs).coerceAtLeast(1L)) / 1_000_000.0
         currentStartUs = -1L
         if (bytes.isEmpty()) return
         segments[nextSequence++] = Segment(bytes, duration)

@@ -359,7 +359,7 @@ internal fun ThemeSoundsTab(onMessage: (String) -> Unit) {
                 if (settings.customMusicUri != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBetween,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(

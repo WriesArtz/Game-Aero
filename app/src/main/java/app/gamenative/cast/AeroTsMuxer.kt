@@ -114,7 +114,8 @@ internal class AeroTsMuxer {
             elementary.write(nal)
         }
 
-        val pts90k = (ptsUs * 9L) / 100L
+        val pcr90k = (ptsUs * 9L) / 100L
+        val pts90k = pcr90k + PTS_DELAY_90K
         val pes = ByteArrayOutputStream()
         pes.write(0x00); pes.write(0x00); pes.write(0x01)
         pes.write(0xE0)
@@ -122,7 +123,7 @@ internal class AeroTsMuxer {
         pes.write(0x80); pes.write(0x80); pes.write(0x05)
         writePts(pes, pts90k)
         pes.write(elementary.toByteArray())
-        writePesPackets(pes.toByteArray(), pts90k, randomAccess)
+        writePesPackets(pes.toByteArray(), pcr90k, randomAccess)
     }
 
     private fun writePesPackets(pes: ByteArray, pts90k: Long, randomAccess: Boolean) {
@@ -214,6 +215,8 @@ internal class AeroTsMuxer {
         private const val PAT_PID = 0x0000
         private const val PMT_PID = 0x1000
         private const val VIDEO_PID = 0x0100
+        /** 200 ms at 90 kHz between the clock reference and the presentation time. */
+        private const val PTS_DELAY_90K = 18_000L
         private val AUD = byteArrayOf(0x09, 0xF0.toByte())
         private val CRC_TABLE = IntArray(256).also { table ->
             val polynomial = 0x04C11DB7

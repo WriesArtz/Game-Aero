@@ -18,7 +18,7 @@ internal class AeroVideoEncoder(
     private val height: Int,
     private val bitrate: Int,
     private val fps: Int = 30,
-    private val keyFrameIntervalSeconds: Int = 2,
+    private val keyFrameIntervalSeconds: Int = 1,
 ) {
     interface Sink {
         fun onFormat(sps: ByteArray, pps: ByteArray)
@@ -51,10 +51,18 @@ internal class AeroVideoEncoder(
                 },
             )
             setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1_000_000L / fps)
+            setInteger(MediaFormat.KEY_PRIORITY, 0) // real-time
         }
 
         val created = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         try {
+            // constant bitrate keeps the HLS segments a predictable size on the Wi-Fi link
+            val cbr = runCatching {
+                created.codecInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                    .encoderCapabilities
+                    .isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
+            }.getOrDefault(false)
+            if (cbr) format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
             created.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             inputSurface = created.createInputSurface()
             created.start()

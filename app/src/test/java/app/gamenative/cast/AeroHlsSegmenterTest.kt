@@ -37,6 +37,13 @@ class AeroHlsSegmenterTest {
         assertFalse(playlist.contains("#EXT-X-ENDLIST"))
     }
 
+    @Test
+    fun segmentDurationRunsUntilTheNextKeyFrame() {
+        val playlist = newSegmenterWithTwoSegments().playlist()
+
+        assertTrue(playlist.contains("#EXTINF:2.100,"))
+    }
+
     private fun newSegmenterWithTwoSegments(): AeroHlsSegmenter {
         val segmenter = AeroHlsSegmenter(targetDurationSeconds = 2.0, windowSize = 5)
         segmenter.onFormat(
