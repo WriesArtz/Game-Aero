@@ -9,7 +9,10 @@ import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 import timber.log.Timber
 
-/** H.264 encoder that exposes a Surface for MediaProjection's virtual display. */
+/**
+ * Game-Aero adaptation of the H.264 MediaCodec sender pattern from ddagunts/ScreenCast (Apache-2.0).
+ * Reworked for this app's projection service and video-only HLS pipeline.
+ */
 internal class AeroVideoEncoder(
     private val width: Int,
     private val height: Int,
