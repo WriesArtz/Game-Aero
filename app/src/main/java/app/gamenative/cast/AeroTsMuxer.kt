@@ -3,7 +3,8 @@ package app.gamenative.cast
 import java.io.ByteArrayOutputStream
 
 /**
- * Small video-only MPEG-TS muxer for H.264 Annex-B samples.
+ * Game-Aero adaptation of the MPEG-TS muxing approach from ddagunts/ScreenCast (Apache-2.0).
+ * Reworked as a video-only H.264 transport stream for this app's Cast sender.
  * PSI tables and a PCR are emitted at each IDR so every HLS segment can start independently.
  */
 internal class AeroTsMuxer {
