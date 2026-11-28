@@ -1610,6 +1610,10 @@
     <string name="themes_sounds_music_subtitle">Play music while you browse the app</string>
     <string name="themes_sounds_music_volume">Music volume</string>
     <string name="themes_sounds_music_volume_subtitle">How loud menu music plays</string>
+    <string name="themes_sounds_custom_choose">Choose MP3/WAV file</string>
+    <string name="themes_sounds_custom_selected">Custom menu music is selected</string>
+    <string name="themes_sounds_custom_remove">Remove</string>
+    <string name="themes_sounds_custom_invalid">Please select an MP3 or WAV audio file.</string>
     <string name="themes_sounds_music_pack">Music pack</string>
     <string name="themes_sounds_no_music">No music packs installed yet.</string>
     <string name="themes_sounds_import">Import pack zip</string>
