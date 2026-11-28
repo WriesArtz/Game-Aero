@@ -3779,6 +3779,7 @@
     <string name="aero_cast_permission_cancelled">Streaming was not started because screen permission was cancelled.</string>
     <string name="aero_cast_stream_error_permission">Android did not provide screen-capture permission.</string>
     <string name="aero_cast_stream_error_generic">Unable to start screen streaming.</string>
+    <string name="aero_cast_receiver_rejected">The Chromecast could not play this stream. Try a lower resolution or another receiver.</string>
     <string name="aero_cast_stream_error_timeout">No video frames arrived. Check screen-capture permission and try again.</string>
     <string name="aero_cast_notification_title">Game-Aero is streaming</string>
     <string name="aero_cast_notification_text">Screen capture is active. Tap Stop to end the stream.</string>
