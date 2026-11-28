@@ -3805,6 +3805,7 @@
     <string name="aero_cast_save">Save</string>
     <string name="aero_cast_cancel">Cancel</string>
     <string name="aero_cast_button">Cast screen to TV</string>
+    <string name="aero_cast_searching">Searching for Chromecast devices on this network…</string>
     <string name="aero_cast_audio">Stream audio</string>
     <string name="aero_cast_audio_unavailable">Audio capture is not available on this device; streaming video only.</string>
     <string name="aero_cast_audio_denied">Microphone permission was denied, so the stream has no audio. Allow it to hear Game-Aero on the TV.</string>

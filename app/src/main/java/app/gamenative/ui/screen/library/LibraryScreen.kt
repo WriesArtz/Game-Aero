@@ -439,6 +439,7 @@ private fun LibraryScreenContent(
     var recommendationItemCount by remember { mutableIntStateOf(0) }
 
     var isSystemMenuOpen by remember { mutableStateOf(false) }
+    var showCastDialog by remember { mutableStateOf(false) }
     // Track previous overlay states to detect when they close
     var wasSystemMenuOpen by remember { mutableStateOf(false) }
     var wasOptionsPanelOpen by remember { mutableStateOf(false) }
@@ -1072,6 +1073,12 @@ private fun LibraryScreenContent(
         }
     }
 
+    // casting to a TV: permission flow, stream events and the dialog; opened from the Aero top bar
+    app.gamenative.ui.screen.library.components.AeroCastController(
+        showDialog = showCastDialog,
+        onDismiss = { showCastDialog = false },
+    )
+
     Box(
         Modifier
             .fillMaxSize()
@@ -1517,6 +1524,7 @@ private fun LibraryScreenContent(
                         onSearchClick = { onIsSearching(true) },
                         onAddGameClick = onAddCustomGameClick,
                         onMenuClick = { isSystemMenuOpen = true },
+                        onCastClick = { showCastDialog = true },
                         onNavigateDownToGrid = {
                             if (isListFocusable()) {
                                 requestContentFocusOrDefer()

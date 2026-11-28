@@ -3677,6 +3677,7 @@
     <string name="aero_cast_save">Guardar</string>
     <string name="aero_cast_cancel">Cancelar</string>
     <string name="aero_cast_button">Transmitir pantalla al televisor</string>
+    <string name="aero_cast_searching">Buscando Chromecast en esta red…</string>
     <string name="aero_cast_audio">Transmitir audio</string>
     <string name="aero_cast_audio_unavailable">La captura de audio no está disponible en este dispositivo; se transmite solo video.</string>
     <string name="aero_cast_audio_denied">Se negó el permiso de micrófono, así que la transmisión no tiene audio. Actívalo para escuchar Game-Aero en la TV.</string>

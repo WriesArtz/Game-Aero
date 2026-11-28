@@ -26,6 +26,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
@@ -644,6 +645,7 @@ fun AeroLibraryTabBar(
     onOptionsClick: () -> Unit,
     onSearchClick: () -> Unit,
     onAddGameClick: () -> Unit,
+    onCastClick: (() -> Unit)? = null,
     onMenuClick: () -> Unit,
     onNavigateDownToGrid: () -> Unit,
     onPreviousTab: () -> Unit = {},
@@ -714,6 +716,9 @@ fun AeroLibraryTabBar(
                 IconActionButton(Icons.Default.Tune, stringResource(R.string.options), onOptionsClick, size = 34.dp)
                 IconActionButton(Icons.Default.Search, stringResource(R.string.search), onSearchClick, size = 34.dp)
                 IconActionButton(Icons.Default.Add, stringResource(R.string.action_add_game), onAddGameClick, size = 34.dp)
+                if (onCastClick != null) {
+                    IconActionButton(Icons.Default.Cast, stringResource(R.string.aero_cast_button), onCastClick, size = 34.dp)
+                }
             }
         }
 
