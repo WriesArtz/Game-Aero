@@ -106,11 +106,14 @@ class AeroScreenStreamService : Service() {
         val densityDpi = resources.displayMetrics.densityDpi.coerceAtLeast(DisplayMetrics.DENSITY_DEFAULT)
 
         val liveSegmenter = AeroHlsSegmenter(targetDurationSeconds = 2.0, windowSize = 5)
+        segmenter = liveSegmenter
         val server = AeroHlsHttpServer(liveSegmenter, resolution, size.width, size.height)
+        httpServer = server
         server.start()
         val url = server.streamUrl
 
         val liveEncoder = AeroVideoEncoder(size.width, size.height, resolution.bitrate)
+        encoder = liveEncoder
         liveEncoder.start(liveSegmenter)
 
         val display = activeProjection.createVirtualDisplay(
@@ -124,9 +127,6 @@ class AeroScreenStreamService : Service() {
             Handler(Looper.getMainLooper()),
         ) ?: error("Android could not create the video capture display")
 
-        segmenter = liveSegmenter
-        httpServer = server
-        encoder = liveEncoder
         virtualDisplay = display
 
         thread(name = "aero-stream-ready", isDaemon = true) {
