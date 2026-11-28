@@ -3635,4 +3635,5 @@
     <string name="covers_key">Clave de API de SteamGridDB</string>
     <string name="covers_save">Guardar y buscar carátulas</string>
     <string name="covers_saved">Clave guardada; las carátulas irán apareciendo</string>
+    <string name="aero_cast_receiver_status">Se agregó la base de Cast. El receptor personalizado para TV aún no está listo.</string>
 </resources>
