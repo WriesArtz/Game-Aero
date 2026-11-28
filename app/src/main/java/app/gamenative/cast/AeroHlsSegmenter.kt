@@ -62,20 +62,9 @@ internal class AeroHlsSegmenter(
             val oldest = segments.keys.firstOrNull() ?: break
             segments.remove(oldest)
         }
-        (lock as java.lang.Object).notifyAll()
     }
 
-    fun awaitFirstSegment(timeoutMs: Long): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        synchronized(lock) {
-            while (segments.isEmpty()) {
-                val remaining = deadline - System.currentTimeMillis()
-                if (remaining <= 0L) return false
-                (lock as java.lang.Object).wait(remaining.coerceAtMost(250L))
-            }
-            return true
-        }
-    }
+    fun readySegmentCount(): Int = synchronized(lock) { segments.size }
 
     fun segment(sequence: Int): ByteArray? = synchronized(lock) { segments[sequence]?.bytes }
 
