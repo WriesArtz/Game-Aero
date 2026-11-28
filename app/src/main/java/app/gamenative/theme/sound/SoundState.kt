@@ -24,6 +24,7 @@ data class SoundSettings(
     val musicEnabled: Boolean = false,
     val musicVolume: Float = 0.4f,
     val activeMusicPackId: String? = null,
+    val customMusicUri: String? = null,
 )
 
 /** Store record a pack folder was installed from. */
@@ -44,6 +45,7 @@ data class SoundState(
                     put("musicEnabled", JsonPrimitive(settings.musicEnabled))
                     put("musicVolume", JsonPrimitive(settings.musicVolume))
                     settings.activeMusicPackId?.let { put("activeMusicPackId", JsonPrimitive(it)) }
+                    settings.customMusicUri?.let { put("customMusicUri", JsonPrimitive(it)) }
                 },
             ),
             "packs" to JsonObject(
@@ -82,6 +84,7 @@ data class SoundState(
                 musicEnabled = bool("musicEnabled", defaults.musicEnabled),
                 musicVolume = vol("musicVolume", defaults.musicVolume),
                 activeMusicPackId = str("activeMusicPackId"),
+                customMusicUri = str("customMusicUri"),
             )
             val origins = LinkedHashMap<String, SoundPackOrigin>()
             (root["packs"] as? JsonObject)?.forEach { (id, v) ->
