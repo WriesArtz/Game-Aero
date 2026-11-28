@@ -102,6 +102,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.cast.framework.CastButtonFactory
+import androidx.mediarouter.app.MediaRouteButton
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -291,6 +294,12 @@ internal fun AeroHomeScreen(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+
+        // Cast discovery control: the receiver UI itself is a separate next phase.
+        AndroidView(
+            factory = { context -> MediaRouteButton(context).apply { CastButtonFactory.setUpMediaRouteButton(context, this) } },
+            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(48.dp),
+        )
         val screenW = maxWidth
         val screenH = maxHeight
         // every measure follows the screen's height, so the proportions hold from a phone to a television
