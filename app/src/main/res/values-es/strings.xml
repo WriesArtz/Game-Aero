@@ -3636,4 +3636,15 @@
     <string name="covers_save">Guardar y buscar carátulas</string>
     <string name="covers_saved">Clave guardada; las carátulas irán apareciendo</string>
     <string name="aero_cast_receiver_status">Se agregó la base de Cast. El receptor personalizado para TV aún no está listo.</string>
+    <string name="aero_cast_settings_title">Configuración de transmisión de pantalla</string>
+    <string name="aero_cast_resolution">Resolución de transmisión</string>
+    <string name="aero_cast_480p">480p (menos ancho de banda)</string>
+    <string name="aero_cast_720p">720p (equilibrado)</string>
+    <string name="aero_cast_1080p">1080p (mayor calidad)</string>
+    <string name="aero_cast_aspect">Relación de aspecto</string>
+    <string name="aero_cast_aspect_original">Original (mantener proporción de la app)</string>
+    <string name="aero_cast_settings_pending">Estas preferencias se guardan para la futura función de transmisión. La transmisión aún no está disponible.</string>
+    <string name="aero_cast_save">Guardar</string>
+    <string name="aero_cast_cancel">Cancelar</string>
+    <string name="aero_cast_button">Configuración de transmisión</string>
 </resources>
