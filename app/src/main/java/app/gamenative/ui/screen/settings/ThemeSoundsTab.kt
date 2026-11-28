@@ -197,6 +197,26 @@ internal fun ThemeSoundsTab(onMessage: (String) -> Unit) {
         }
     }
 
+    val customMusicLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        val mime = ctx.contentResolver.getType(uri).orEmpty().lowercase()
+        val name = runCatching {
+            ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        }.getOrNull().orEmpty().lowercase()
+        val supported = name.endsWith(".mp3") || name.endsWith(".wav") ||
+            mime in setOf("audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave")
+        if (!supported) {
+            onMessage(ctx.getString(R.string.themes_sounds_custom_invalid))
+            return@rememberLauncherForActivityResult
+        }
+        runCatching {
+            ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runAction { SoundPackManager.setCustomMusicUri(uri.toString()) }
+    }
+
     LaunchedEffect(Unit) {
         if (!store.loaded) loadStore(reset = true)
     }
