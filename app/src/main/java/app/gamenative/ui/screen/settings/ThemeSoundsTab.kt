@@ -339,7 +339,7 @@ internal fun ThemeSoundsTab(onMessage: (String) -> Unit) {
             SoundPackRow(
                 name = stringResource(R.string.themes_sounds_none),
                 detail = null,
-                selected = settings.activeMusicPackId == null,
+                selected = settings.activeMusicPackId == null && settings.customMusicUri == null,
                 onSelect = { runAction { SoundPackManager.setActiveMusicPack(null) } },
                 focusRequester = musicNoneFocus,
             )
