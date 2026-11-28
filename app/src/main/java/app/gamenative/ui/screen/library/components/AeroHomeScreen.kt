@@ -1,6 +1,23 @@
 package app.gamenative.ui.screen.library.components
 
 import androidx.compose.animation.core.Spring
+import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.projection.MediaProjectionManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.runtime.DisposableEffect
+import app.gamenative.cast.AeroScreenStreamService
+import com.google.android.gms.cast.MediaInfo
+import com.google.android.gms.cast.MediaLoadRequestData
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.SessionManagerListener
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -177,6 +194,105 @@ internal fun AeroHomeScreen(
 ) {
     val items = state.appInfoList
     val appContext = LocalContext.current
+    var isScreenStreaming by remember { mutableStateOf(false) }
+    val capturePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val projectionData = result.data
+        if (result.resultCode == Activity.RESULT_OK && projectionData != null) {
+            val connected = runCatching {
+                CastContext.getSharedInstance(appContext).sessionManager.currentCastSession?.isConnected == true
+            }.getOrDefault(false)
+            if (connected) {
+                val serviceIntent = Intent(appContext, AeroScreenStreamService::class.java)
+                    .putExtra(AeroScreenStreamService.EXTRA_RESULT_CODE, result.resultCode)
+                    .putExtra(AeroScreenStreamService.EXTRA_PROJECTION_DATA, projectionData)
+                runCatching { ContextCompat.startForegroundService(appContext, serviceIntent) }
+                    .onFailure { Toast.makeText(appContext, it.message ?: appContext.getString(R.string.aero_cast_stream_error_generic), Toast.LENGTH_LONG).show() }
+            } else {
+                Toast.makeText(appContext, R.string.aero_cast_connect_first, Toast.LENGTH_LONG).show()
+            }
+        } else {
+            Toast.makeText(appContext, R.string.aero_cast_permission_cancelled, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    DisposableEffect(appContext) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    AeroScreenStreamService.ACTION_STREAM_READY -> {
+                        val url = intent.getStringExtra(AeroScreenStreamService.EXTRA_STREAM_URL) ?: return
+                        val remoteClient = runCatching {
+                            CastContext.getSharedInstance(appContext).sessionManager.currentCastSession?.remoteMediaClient
+                        }.getOrNull()
+                        if (remoteClient == null) {
+                            appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
+                            Toast.makeText(appContext, R.string.aero_cast_connect_first, Toast.LENGTH_LONG).show()
+                        } else {
+                            val media = MediaInfo.Builder(url)
+                                .setContentType("application/x-mpegURL")
+                                .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
+                                .build()
+                            remoteClient.load(MediaLoadRequestData.Builder().setMediaInfo(media).build())
+                            isScreenStreaming = true
+                            Toast.makeText(appContext, R.string.aero_cast_streaming, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    AeroScreenStreamService.ACTION_STREAM_ERROR -> {
+                        isScreenStreaming = false
+                        val message = intent.getStringExtra(AeroScreenStreamService.EXTRA_ERROR_MESSAGE)
+                            ?: appContext.getString(R.string.aero_cast_stream_error_generic)
+                        Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+                    }
+                    AeroScreenStreamService.ACTION_STREAM_STOPPED -> isScreenStreaming = false
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(AeroScreenStreamService.ACTION_STREAM_READY)
+            addAction(AeroScreenStreamService.ACTION_STREAM_ERROR)
+            addAction(AeroScreenStreamService.ACTION_STREAM_STOPPED)
+        }
+        ContextCompat.registerReceiver(appContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+
+        val castContext = runCatching { CastContext.getSharedInstance(appContext) }.getOrNull()
+        val sessionListener = object : SessionManagerListener<CastSession> {
+            override fun onSessionStarting(session: CastSession) = Unit
+            override fun onSessionStarted(session: CastSession, sessionId: String) = Unit
+            override fun onSessionStartFailed(session: CastSession, error: Int) = Unit
+            override fun onSessionEnding(session: CastSession) = Unit
+            override fun onSessionEnded(session: CastSession, error: Int) {
+                appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
+            }
+            override fun onSessionResuming(session: CastSession, sessionId: String) = Unit
+            override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) = Unit
+            override fun onSessionResumeFailed(session: CastSession, error: Int) {
+                appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
+            }
+        }
+        castContext?.sessionManager?.addSessionManagerListener(sessionListener, CastSession::class.java)
+        onDispose {
+            runCatching { appContext.unregisterReceiver(receiver) }
+            castContext?.sessionManager?.removeSessionManagerListener(sessionListener, CastSession::class.java)
+        }
+    }
+
+    val startScreenStreaming: () -> Unit = {
+        val connected = runCatching {
+            CastContext.getSharedInstance(appContext).sessionManager.currentCastSession?.isConnected == true
+        }.getOrDefault(false)
+        if (!connected) {
+            Toast.makeText(appContext, R.string.aero_cast_connect_first, Toast.LENGTH_LONG).show()
+        } else {
+            val manager = appContext.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            capturePermissionLauncher.launch(manager.createScreenCaptureIntent())
+        }
+    }
+    val stopScreenStreaming: () -> Unit = {
+        appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
+    }
+
     LaunchedEffect(Unit) { EmulatorLibrary.ensureLoaded(appContext) }
     val emulatorEntries by EmulatorLibrary.entries.collectAsStateWithLifecycle()
     val emulatorGames by EmulatorLibrary.games.collectAsStateWithLifecycle()
@@ -295,7 +411,6 @@ internal fun AeroHomeScreen(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
 
-        // Screen-cast options are surfaced here; the actual streaming backend is still being implemented.
         IconButton(
             onClick = { showCastSettings = true },
             modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(48.dp),
@@ -303,7 +418,13 @@ internal fun AeroHomeScreen(
             Icon(Icons.Default.Cast, contentDescription = stringResource(R.string.aero_cast_button), tint = Color.White)
         }
         if (showCastSettings) {
-            AeroScreenStreamSettingsDialog(context = appContext, onDismiss = { showCastSettings = false })
+            AeroScreenStreamSettingsDialog(
+                context = appContext,
+                onDismiss = { showCastSettings = false },
+                onStartStreaming = { startScreenStreaming() },
+                onStopStreaming = { stopScreenStreaming() },
+                isStreaming = isScreenStreaming,
+            )
         }
         val screenW = maxWidth
         val screenH = maxHeight
