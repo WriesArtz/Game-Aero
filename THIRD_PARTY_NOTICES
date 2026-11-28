@@ -556,3 +556,16 @@ This project bundles `app/src/main/lib/perfsdk-v1.0.0.jar`, the Samsung Performa
 power-control feature. The SDK is proprietary to Samsung Electronics and is NOT covered by
 this project's GPL-3.0 license; it is used under the terms of Samsung's SDK license
 agreement. If you redistribute this project, verify your right to redistribute the SDK.
+
+
+## ScreenCast streaming reference
+
+**Project:** [ddagunts/ScreenCast](https://github.com/ddagunts/ScreenCast)  
+**Author:** Dmitry Dagunts  
+**License:** Apache License 2.0  
+**License copy:** `licenses/SCREENCAST-APACHE-2.0.txt`
+
+Game-Aero's H.264 encoder and live HLS pipeline were informed by the ScreenCast
+project's MediaProjection, MediaCodec, and HLS implementation. The Game-Aero
+implementation has been adapted for a video-only MPEG-TS stream and a local,
+token-protected HTTP origin. Modifications are documented in the source files.
