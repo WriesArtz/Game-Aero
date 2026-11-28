@@ -130,7 +130,6 @@ internal class AeroTsMuxer {
         while (offset < pes.size) {
             val remaining = pes.size - offset
             val needsPcr = first
-            val minimumAdaptation = if (needsPcr) 7 else 0
             val take = minOf(remaining, if (needsPcr) 176 else 184)
             val adaptationLength = if (needsPcr || take < 184) 183 - take else 0
             val hasAdaptation = needsPcr || take < 184
