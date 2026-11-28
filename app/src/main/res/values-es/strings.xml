@@ -3653,6 +3653,7 @@
     <string name="aero_cast_permission_cancelled">No se inició la transmisión porque se canceló el permiso de pantalla.</string>
     <string name="aero_cast_stream_error_permission">Android no entregó el permiso de captura de pantalla.</string>
     <string name="aero_cast_stream_error_generic">No se pudo iniciar la transmisión de pantalla.</string>
+    <string name="aero_cast_receiver_rejected">El Chromecast no pudo reproducir esta transmisión. Prueba con una resolución menor u otro receptor.</string>
     <string name="aero_cast_stream_error_timeout">No se recibieron fotogramas de vídeo. Comprueba el permiso de captura e inténtalo de nuevo.</string>
     <string name="aero_cast_notification_title">Game-Aero está transmitiendo</string>
     <string name="aero_cast_notification_text">La captura de pantalla sigue activa. Toca Detener para finalizarla.</string>
