@@ -44,6 +44,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Cloud
@@ -57,6 +58,7 @@ import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -102,9 +104,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
-import com.google.android.gms.cast.framework.CastButtonFactory
-import androidx.mediarouter.app.MediaRouteButton
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -184,6 +183,7 @@ internal fun AeroHomeScreen(
     val history by PlayHistoryStore.lastPlayed.collectAsStateWithLifecycle()
 
     var selectedId by remember { mutableStateOf<String?>(null) }
+    var showCastSettings by remember { mutableStateOf(false) }
     var focusedShelf by remember { mutableStateOf<String?>(null) }
     val fx = rememberAeroFx()
     val style by AeroStyle.state.collectAsStateWithLifecycle()
@@ -295,11 +295,16 @@ internal fun AeroHomeScreen(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
 
-        // Cast discovery control: the receiver UI itself is a separate next phase.
-        AndroidView(
-            factory = { context -> MediaRouteButton(context).apply { CastButtonFactory.setUpMediaRouteButton(context, this) } },
+        // Screen-cast options are surfaced here; the actual streaming backend is still being implemented.
+        IconButton(
+            onClick = { showCastSettings = true },
             modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(48.dp),
-        )
+        ) {
+            Icon(Icons.Default.Cast, contentDescription = stringResource(R.string.aero_cast_button), tint = Color.White)
+        }
+        if (showCastSettings) {
+            AeroScreenStreamSettingsDialog(context = appContext, onDismiss = { showCastSettings = false })
+        }
         val screenW = maxWidth
         val screenH = maxHeight
         // every measure follows the screen's height, so the proportions hold from a phone to a television
