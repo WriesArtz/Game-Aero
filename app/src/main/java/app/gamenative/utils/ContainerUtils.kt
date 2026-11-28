@@ -1,5 +1,6 @@
 package app.gamenative.utils
 
+import app.gamenative.service.store.StoreGames
 import android.content.Context
 import android.os.Build
 import app.gamenative.BuildConfig
@@ -1107,6 +1108,16 @@ object ContainerUtils {
                     defaultDrives
                 }
             }
+
+            else -> {
+                val installPath = StoreGames.installPath(extractGameIdFromContainerId(appId))
+                if (installPath != null) {
+                    val drive: Char = if (defaultDrives.contains("A:")) Container.getNextAvailableDriveLetter(defaultDrives) else 'A'
+                    "$defaultDrives$drive:$installPath"
+                } else {
+                    defaultDrives
+                }
+            }
         }
         Timber.d("Prepared container drives: $drives")
 
@@ -1430,6 +1441,8 @@ object ContainerUtils {
                 val appIdInt = runCatching { extractGameIdFromContainerId(appId) }.getOrNull()
                 if (appIdInt != null) AmazonService.getInstallPathByAppId(appIdInt) else null
             }
+
+            else -> StoreGames.installPath(extractGameIdFromContainerId(appId))
         }
 
         val resolvedGameFolderPath = if (gameSource == GameSource.CUSTOM_GAME) {
@@ -1447,6 +1460,8 @@ object ContainerUtils {
                 GameSource.AMAZON ->
                     runCatching { extractGameIdFromContainerId(appId) }.getOrNull()
                         ?.let { AmazonService.updateInstallPath(it, resolvedGameFolderPath) }
+                GameSource.EA, GameSource.UBISOFT ->
+                    runBlocking { StoreGames.updateInstallPath(extractGameIdFromContainerId(appId), resolvedGameFolderPath) }
                 else -> {}
             }
         }
@@ -1584,6 +1599,12 @@ object ContainerUtils {
         }.onFailure {
             Timber.tag("ContainerUtils").w(it, "html5 page profile cleanup failed appId=%s", appId)
         }
+        // or in the default profile, where WebView has no profiles.
+        runCatching {
+            app.gamenative.html5.host.Html5DefaultProfilePages.clear(context, appId, uninstall = true)
+        }.onFailure {
+            Timber.tag("ContainerUtils").w(it, "html5 default-profile page cleanup failed appId=%s", appId)
+        }
 
         runCatching {
             deleteHtml5ControlsProfileIfOrphan(context, appId)
@@ -1623,9 +1644,28 @@ object ContainerUtils {
         }.onFailure {
             Timber.tag("ContainerUtils").w(it, "LS purge enqueue failed appId=%s", appId)
         }
+        deleteOriginFiles(context, origin)
+        // inbound-gate marker: a reinstall's cloud restore writes backdated mtimes that look older than a
+        // stale marker, so launch-sync would skip and stale OPFS would win.
+        runCatching {
+            app.gamenative.html5.savesync.Html5SaveSyncService.clearSyncState(context, appId)
+        }.onFailure {
+            Timber.tag("ContainerUtils").w(it, "sync-state marker cleanup failed appId=%s", appId)
+        }
+        // fs-authoritative marker. permanent otherwise, so a reinstall (or a different build of the
+        // title) keeps skipping chromium LS/IDB sync from a decision made on the old install.
+        runCatching {
+            app.gamenative.html5.savesync.Html5FsAuthoritative.clear(context, appId)
+        }.onFailure {
+            Timber.tag("ContainerUtils").w(it, "fs-authoritative marker cleanup failed appId=%s", appId)
+        }
+    }
+
+    // an origin's IndexedDB and OPFS files in the default profile.
+    internal fun deleteOriginFiles(context: Context, origin: String) {
         val defaultDir = File(context.dataDir, "app_webview/Default")
         val idbDir = File(defaultDir, "IndexedDB")
-        val prefix = app.gamenative.html5.host.WebViewOrigin.levelDbPrefix(appId)
+        val prefix = app.gamenative.html5.savesync.OriginCodec.filenameFromUrl(origin)
         for (suffix in listOf("indexeddb.leveldb", "indexeddb.blob")) {
             val target = File(idbDir, "$prefix.$suffix")
             runCatching {
@@ -1649,20 +1689,6 @@ object ContainerUtils {
             }
         }.onFailure {
             Timber.tag("ContainerUtils").w(it, "OPFS bucket cleanup failed origin=%s", origin)
-        }
-        // inbound-gate marker: a reinstall's cloud restore writes backdated mtimes that look older than a
-        // stale marker, so launch-sync would skip and stale OPFS would win.
-        runCatching {
-            app.gamenative.html5.savesync.Html5SaveSyncService.clearSyncState(context, appId)
-        }.onFailure {
-            Timber.tag("ContainerUtils").w(it, "sync-state marker cleanup failed appId=%s", appId)
-        }
-        // fs-authoritative marker. permanent otherwise, so a reinstall (or a different build of the
-        // title) keeps skipping chromium LS/IDB sync from a decision made on the old install.
-        runCatching {
-            app.gamenative.html5.savesync.Html5FsAuthoritative.clear(context, appId)
-        }.onFailure {
-            Timber.tag("ContainerUtils").w(it, "fs-authoritative marker cleanup failed appId=%s", appId)
         }
     }
 
@@ -1774,15 +1800,7 @@ object ContainerUtils {
      * Extracts the game source from a container ID string
      */
     fun extractGameSourceFromContainerId(containerId: String): GameSource {
-        return when {
-            containerId.startsWith("STEAM_") -> GameSource.STEAM
-            containerId.startsWith("CUSTOM_GAME_") -> GameSource.CUSTOM_GAME
-            containerId.startsWith("GOG_") -> GameSource.GOG
-            containerId.startsWith("EPIC_") -> GameSource.EPIC
-            containerId.startsWith("AMAZON_") -> GameSource.AMAZON
-            // Add other platforms here..
-            else -> GameSource.STEAM // default fallback
-        }
+        return GameSource.fromContainerId(containerId) ?: GameSource.STEAM
     }
 
     fun isLocalSavesOnly(context: Context, appId: String): Boolean {
@@ -1798,6 +1816,7 @@ object ContainerUtils {
         GameSource.AMAZON,
         GameSource.CUSTOM_GAME,
         -> true
+        else -> StoreGames.isStore(gameSource)
     }
 
     /**
@@ -1812,6 +1831,7 @@ object ContainerUtils {
             GameSource.GOG -> GOGService.getGOGGameOf(gameId.toString())?.title
             GameSource.EPIC -> EpicService.getEpicGameOf(gameId)?.title
             GameSource.AMAZON -> AmazonService.getAmazonGameByAppId(gameId)?.title
+            GameSource.EA, GameSource.UBISOFT -> StoreGames.title(gameId)
             GameSource.CUSTOM_GAME -> {
                 val customAppId = "${GameSource.CUSTOM_GAME.name}_$gameId"
                 CustomGameScanner.getFolderPathFromAppId(customAppId)

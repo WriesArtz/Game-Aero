@@ -1476,6 +1476,13 @@ object PrefManager {
             setPref(SHOW_AMAZON_IN_LIBRARY, value)
         }
 
+    private fun showStoreInLibraryKey(source: GameSource) = booleanPreferencesKey("show_${source.name.lowercase()}_in_library")
+
+    /** Whether the All tab lists games of [source], a store served through the shared store adapter. */
+    fun showStoreInLibrary(source: GameSource): Boolean = getPref(showStoreInLibraryKey(source), true)
+
+    fun setShowStoreInLibrary(source: GameSource, value: Boolean) = setPref(showStoreInLibraryKey(source), value)
+
     // Game counts for skeleton loaders
     private val CUSTOM_GAMES_COUNT = intPreferencesKey("custom_games_count")
     var customGamesCount: Int
@@ -1777,7 +1784,10 @@ object PrefManager {
         GameSource.GOG -> frontendSyncDirGog
         GameSource.AMAZON -> frontendSyncDirAmazon
         GameSource.CUSTOM_GAME -> frontendSyncDirCustom
+        else -> getPref(storeFrontendSyncKey(source), "")
     }
+
+    private fun storeFrontendSyncKey(source: GameSource) = stringPreferencesKey("frontend_sync_dir_${source.name.lowercase()}")
 
     /** Persists [path] as the export directory for [source]. Pass an empty string to clear. */
     fun setFrontendSyncDir(source: GameSource, path: String) {
@@ -1787,6 +1797,7 @@ object PrefManager {
             GameSource.GOG -> frontendSyncDirGog = path
             GameSource.AMAZON -> frontendSyncDirAmazon = path
             GameSource.CUSTOM_GAME -> frontendSyncDirCustom = path
+            else -> setPref(storeFrontendSyncKey(source), path)
         }
     }
 
@@ -2142,6 +2153,13 @@ object PrefManager {
             setPref(FEX_CODE_MAP_UPLOAD_ENABLED, value)
             if (!value) setPref(FEX_CODE_CACHE_USE_ENABLED, false)
         }
+
+    // Set once the code map server has answered an upload with its indirect branch count: from then on FEX
+    // records indirect branch targets (FexCodeMaps). A server that predates them refuses such maps.
+    private val FEX_CODE_MAP_INDIRECT_ACCEPTED = booleanPreferencesKey("fex_code_map_indirect_accepted")
+    var fexCodeMapIndirectAccepted: Boolean
+        get() = getPref(FEX_CODE_MAP_INDIRECT_ACCEPTED, false)
+        set(value) { setPref(FEX_CODE_MAP_INDIRECT_ACCEPTED, value) }
 
     // FEX code caches: compile the recorded maps into caches on the device and load them (FexCodeCaches).
     // Needs the maps, so it is off whenever the upload is.
