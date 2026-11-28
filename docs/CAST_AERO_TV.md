@@ -14,7 +14,7 @@ Cast the live Game-Aero app window to a Chromecast/Google Cast receiver. The TV 
 6. `AeroHlsHttpServer` serves the HLS playlists and segments over the phone's local network. A random per-session token is required for every stream path.
 7. Once the first segment is available, the sender loads the live HLS master playlist into the active Cast session.
 
-The phone and Chromecast must be on the same reachable local network. There is no cloud relay. The HTTP server binds to the phone's network interfaces, and the stream URL is shared only with the active Cast session. The token is discarded when the service stops.
+The phone and Chromecast must be on the same reachable local network. There is no cloud relay. The HTTP server binds directly to the selected local IPv4 address (preferring Wi-Fi), rather than listening on every interface. The stream URL is shared only with the active Cast session. The token is discarded when the service stops.
 
 ## Preferences
 
