@@ -24,20 +24,23 @@ internal class AeroHlsHttpServer(
 ) {
     private val token = UUID.randomUUID().toString().replace("-", "")
     private var socket: ServerSocket? = null
+    private var boundAddress: String? = null
     @Volatile private var running = false
 
     val streamUrl: String
         get() {
-            val address = requireNotNull(lanIpv4()) { "No local IPv4 address. Connect the phone and TV to the same Wi-Fi network." }
+            val address = requireNotNull(boundAddress) { "The local stream server has not started." }
             val port = requireNotNull(socket).localPort
             return "http://$address:$port/aero/$token/master.m3u8"
         }
 
     fun start() {
         check(!running)
+        val address = requireNotNull(lanIpv4()) { "No local IPv4 address. Connect the phone and TV to the same Wi-Fi network." }
         val server = ServerSocket()
         server.reuseAddress = true
-        server.bind(InetSocketAddress("0.0.0.0", 0), 12)
+        server.bind(InetSocketAddress(address, 0), 12)
+        boundAddress = address
         socket = server
         running = true
         thread(name = "aero-hls-http", isDaemon = true) {
@@ -163,5 +166,6 @@ internal class AeroHlsHttpServer(
         running = false
         runCatching { socket?.close() }
         socket = null
+        boundAddress = null
     }
 }
