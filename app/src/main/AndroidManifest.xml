@@ -232,6 +232,12 @@
             </intent-filter>
         </activity-alias>
         <service
+            android:name=".cast.AeroScreenStreamService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <service
             android:name=".service.SteamService"
             android:enabled="true"
             android:exported="false"
