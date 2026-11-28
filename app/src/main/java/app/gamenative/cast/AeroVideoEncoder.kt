@@ -38,11 +38,13 @@ internal class AeroVideoEncoder(
             setInteger(MediaFormat.KEY_FRAME_RATE, fps)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, keyFrameIntervalSeconds)
             setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
+            val macroblocksPerSecond = ((width + 15) / 16) * ((height + 15) / 16) * fps
             setInteger(
                 MediaFormat.KEY_LEVEL,
-                when {
-                    width >= 1920 && height >= 1080 -> MediaCodecInfo.CodecProfileLevel.AVCLevel4
-                    else -> MediaCodecInfo.CodecProfileLevel.AVCLevel31
+                if (macroblocksPerSecond > 108_000) {
+                    MediaCodecInfo.CodecProfileLevel.AVCLevel4
+                } else {
+                    MediaCodecInfo.CodecProfileLevel.AVCLevel31
                 },
             )
             setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1_000_000L / fps)
