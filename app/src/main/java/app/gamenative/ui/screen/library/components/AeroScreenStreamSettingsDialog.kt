@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -17,13 +18,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.mediarouter.app.MediaRouteButton
 import app.gamenative.R
 import app.gamenative.cast.AeroScreenStreamSettings
+import com.google.android.gms.cast.framework.CastButtonFactory
 
 @Composable
 internal fun AeroScreenStreamSettingsDialog(
     context: Context,
     onDismiss: () -> Unit,
+    onStartStreaming: () -> Unit,
+    onStopStreaming: () -> Unit,
+    isStreaming: Boolean,
 ) {
     var resolution by remember { mutableStateOf(AeroScreenStreamSettings.resolution(context)) }
     var ratio by remember { mutableStateOf(AeroScreenStreamSettings.aspectRatio(context)) }
@@ -33,7 +40,21 @@ internal fun AeroScreenStreamSettingsDialog(
         title = { Text(context.getString(R.string.aero_cast_settings_title)) },
         text = {
             Column {
-                Text(context.getString(R.string.aero_cast_resolution))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = context.getString(R.string.aero_cast_connect_tv),
+                        modifier = Modifier.weight(1f),
+                    )
+                    AndroidView(
+                        factory = { routeContext ->
+                            MediaRouteButton(routeContext).apply {
+                                CastButtonFactory.setUpMediaRouteButton(routeContext, this)
+                            }
+                        },
+                        modifier = Modifier.size(48.dp),
+                    )
+                }
+                Text(context.getString(R.string.aero_cast_resolution), modifier = Modifier.padding(top = 10.dp))
                 AeroScreenStreamSettings.Resolution.entries.forEach { option ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -61,7 +82,6 @@ internal fun AeroScreenStreamSettingsDialog(
                             text = when (option) {
                                 AeroScreenStreamSettings.AspectRatio.ORIGINAL -> context.getString(R.string.aero_cast_aspect_original)
                                 AeroScreenStreamSettings.AspectRatio.RATIO_16_9 -> "16:9"
-                                AeroScreenStreamSettings.AspectRatio.RATIO_4_3 -> "4:3"
                                 AeroScreenStreamSettings.AspectRatio.RATIO_21_9 -> "21:9"
                             },
                             modifier = Modifier.padding(start = 6.dp),
@@ -69,20 +89,34 @@ internal fun AeroScreenStreamSettingsDialog(
                     }
                 }
                 Text(
-                    text = context.getString(R.string.aero_cast_settings_pending),
+                    text = if (isStreaming) {
+                        context.getString(R.string.aero_cast_streaming)
+                    } else {
+                        context.getString(R.string.aero_cast_capture_notice)
+                    },
                     modifier = Modifier.padding(top = 10.dp),
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                AeroScreenStreamSettings.setResolution(context, resolution)
-                AeroScreenStreamSettings.setAspectRatio(context, ratio)
-                onDismiss()
-            }) { Text(context.getString(R.string.aero_cast_save)) }
+            if (isStreaming) {
+                TextButton(onClick = onStopStreaming) { Text(context.getString(R.string.aero_cast_stop)) }
+            } else {
+                TextButton(onClick = {
+                    AeroScreenStreamSettings.setResolution(context, resolution)
+                    AeroScreenStreamSettings.setAspectRatio(context, ratio)
+                    onStartStreaming()
+                }) { Text(context.getString(R.string.aero_cast_start)) }
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(context.getString(R.string.aero_cast_cancel)) }
+            TextButton(onClick = {
+                if (!isStreaming) {
+                    AeroScreenStreamSettings.setResolution(context, resolution)
+                    AeroScreenStreamSettings.setAspectRatio(context, ratio)
+                }
+                onDismiss()
+            }) { Text(context.getString(R.string.aero_cast_close)) }
         },
     )
 }
