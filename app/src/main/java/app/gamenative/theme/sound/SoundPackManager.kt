@@ -133,10 +133,12 @@ object SoundPackManager {
 
     suspend fun setMusicEnabled(enabled: Boolean) = editSettings("setMusicEnabled") { it.copy(musicEnabled = enabled) }
 
+    suspend fun setCustomMusicUri(uri: String?) = editSettings("setCustomMusicUri") { it.copy(customMusicUri = uri, activeMusicPackId = null) }
+
     suspend fun setMusicVolume(volume: Float) = editSettings("setMusicVolume") { it.copy(musicVolume = SoundState.clampVolume(volume)) }
 
     suspend fun setActiveMusicPack(id: String?) = editSettings("setActiveMusicPack") { s ->
-        if (id == null || installed[id]?.manifest?.music == true) s.copy(activeMusicPackId = id) else s
+        if (id == null || installed[id]?.manifest?.music == true) s.copy(activeMusicPackId = id, customMusicUri = null) else s
     }
 
     suspend fun storeList(query: String, page: Int): Result<List<StoreTheme>> = op("storeList") {
@@ -221,6 +223,7 @@ object SoundPackManager {
             manifest = music?.second?.manifest,
             enabled = current.musicEnabled,
             volume = current.musicVolume,
+            customUri = current.customMusicUri,
         )
     }
 
