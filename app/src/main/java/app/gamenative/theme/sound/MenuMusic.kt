@@ -1,6 +1,7 @@
 package app.gamenative.theme.sound
 
 import android.content.Context
+import android.net.Uri
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -22,7 +23,7 @@ internal object MenuMusic {
     private const val FADE_STEP_MS = 40L
     private const val DUCK_GAIN = 0.25f
 
-    private class Target(val key: String, val dir: File, val manifest: SoundPackManifest)
+    private class Target(val key: String, val dir: File?, val manifest: SoundPackManifest?, val customUri: String? = null)
 
     private class Session(val key: String) {
         var current: MediaPlayer? = null
@@ -61,9 +62,13 @@ internal object MenuMusic {
     private fun handlerLocked(): Handler =
         handler ?: Handler(HandlerThread("MenuMusic").apply { start() }.looper).also { handler = it }
 
-    fun configure(context: Context, key: String?, dir: File?, manifest: SoundPackManifest?, enabled: Boolean, volume: Float) {
+    fun configure(context: Context, key: String?, dir: File?, manifest: SoundPackManifest?, enabled: Boolean, volume: Float, customUri: String? = null) {
         appContext = context.applicationContext
-        target = if (key != null && dir != null && manifest != null && manifest.music) Target(key, dir, manifest) else null
+        target = when {
+            !customUri.isNullOrBlank() -> Target("custom:$customUri", null, null, customUri)
+            key != null && dir != null && manifest != null && manifest.music -> Target(key, dir, manifest)
+            else -> null
+        }
         this.enabled = enabled
         this.volume = SoundState.clampVolume(volume)
         schedule()
@@ -155,8 +160,15 @@ internal object MenuMusic {
     }
 
     private fun openSession(t: Target): Session? {
+        val customUri = t.customUri
+        if (customUri != null) {
+            val player = newPlayer(Uri.parse(customUri), loop = true) ?: return null
+            return Session(t.key).apply { current = player }
+        }
+        val dir = t.dir ?: return null
+        val manifest = t.manifest ?: return null
         val menuFile = try {
-            SteamSounds.menuMusic(t.dir, t.manifest)
+            SteamSounds.menuMusic(dir, manifest)
         } catch (e: Exception) {
             null
         }
@@ -165,7 +177,7 @@ internal object MenuMusic {
             return null
         }
         val introFile = try {
-            SteamSounds.introMusic(t.dir, t.manifest)
+            SteamSounds.introMusic(dir, manifest)
         } catch (e: Exception) {
             null
         }
@@ -225,6 +237,31 @@ internal object MenuMusic {
             p
         } catch (e: Exception) {
             Timber.w(e, "MenuMusic: cannot open ${file.name}")
+            p.release()
+            null
+        }
+    }
+
+    private fun newPlayer(uri: Uri, loop: Boolean): MediaPlayer? {
+        val p = MediaPlayer()
+        return try {
+            p.setAudioAttributes(attributes)
+            val context = appContext ?: throw IllegalStateException("No app context")
+            p.setDataSource(context, uri)
+            p.isLooping = loop
+            p.setVolume(0f, 0f)
+            p.setOnErrorListener { mp, what, extra ->
+                Timber.w("MenuMusic: custom audio player error $what/$extra")
+                if (session?.current === mp || session?.next === mp) {
+                    cancelFade()
+                    releaseSession()
+                }
+                true
+            }
+            p.prepare()
+            p
+        } catch (e: Exception) {
+            Timber.w(e, "MenuMusic: cannot open custom audio URI")
             p.release()
             null
         }
