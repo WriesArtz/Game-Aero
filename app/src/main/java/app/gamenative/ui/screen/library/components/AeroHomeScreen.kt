@@ -291,6 +291,10 @@ internal fun AeroHomeScreen(
         }
     }
     val stopScreenStreaming: () -> Unit = {
+        runCatching {
+            CastContext.getSharedInstance(appContext)
+                .sessionManager.currentCastSession?.remoteMediaClient?.stop()
+        }
         appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
     }
 
