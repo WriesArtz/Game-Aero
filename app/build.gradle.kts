@@ -432,6 +432,8 @@ android {
 }
 
 dependencies {
+    // Google Cast sender SDK — groundwork for the Aero TV receiver.
+    implementation("com.google.android.gms:play-services-cast-framework:22.0.0")
     implementation(libs.material)
 
     // Chrome Custom Tabs for GOG OAuth
