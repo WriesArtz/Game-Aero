@@ -1,20 +1,49 @@
-# Screen mirroring to TV
+# Game-Aero screen streaming to Chromecast
 
 ## Goal
 
-Game-Aero should mirror the app's visible UI to a Chromecast/Google Cast receiver, rather than render a separate dashboard. The stream should be a live video image of the current Game-Aero screen.
+Cast the live Game-Aero app window to a Chromecast/Google Cast receiver. The TV receives a video stream of the UI that is currently shown by the phone; this is not a second dashboard or a remote copy of the library database.
 
-## Preferences added
+## Implemented sender pipeline
 
-The Aero dashboard now opens a screen-streaming settings dialog from the Cast icon. It stores these preferences locally:
+1. The Cast picker is provided by the Google Cast Sender SDK. The sender uses the Google Default Media Receiver.
+2. The user starts a capture session through Android's MediaProjection consent UI.
+3. `AeroScreenStreamService` runs as a foreground media-projection service and creates one virtual display for the session.
+4. `AeroVideoEncoder` encodes the virtual-display surface as H.264 using MediaCodec.
+5. `AeroHlsSegmenter` and `AeroTsMuxer` create a rolling, video-only MPEG-TS HLS stream.
+6. `AeroHlsHttpServer` serves the HLS playlists and segments over the phone's local network. A random per-session token is required for every stream path.
+7. Once the first segment is available, the sender loads the live HLS master playlist into the active Cast session.
 
-- Stream resolution: 480p, 720p, or 1080p (default 720p)
-- Aspect ratio: Original, 16:9, 4:3, or 21:9 (default Original)
+The phone and Chromecast must be on the same reachable local network. There is no cloud relay. The HTTP server binds to the phone's network interfaces, and the stream URL is shared only with the active Cast session. The token is discarded when the service stops.
 
-These settings are groundwork only: the capture/encoding/transport pipeline has not yet been integrated, so the app cannot currently start a screen stream from this button. Preferences are not applied to the app's regular display size or game rendering.
+## Preferences
 
-## Implementation direction
+- Resolution: 480p, 720p, or 1080p.
+- Aspect ratio: Original, 16:9, or 21:9. The old 4:3 option was removed.
+- The selected stream dimensions are applied to the capture surface only; they do not change the phone's normal display resolution or the library's layout.
+- 16:9 uses standard HD dimensions for the selected preset. 21:9 is bounded to the corresponding preset's 16:9 maximum width to avoid unusually wide decoder surfaces. Original follows the app's current display ratio.
 
-Use Android MediaProjection with user consent for capture, and create a virtual display at the requested output dimensions. Maintain the app image without distortion by default; explicit ratio modes should letterbox/crop only in the stream output, not change the phone UI. Chromecast needs a receiver-compatible live-video transport. The existing Cast Sender SDK media button is not screen mirroring and was replaced in the Aero dashboard with the settings entry point.
+## Privacy and lifecycle
 
-Screen capture must use Android's consent flow and stop when the user ends the session. Stream access should be limited to the local Wi-Fi path and protected by a per-session token.
+- Android requests permission before every screen-capture session. The service uses the projection token once and creates one virtual display for that session.
+- On Android 14 and later, the system picker allows the user to choose a single app window. The user should select Game-Aero. Earlier Android versions may only offer full-display sharing.
+- A persistent foreground notification shows while capture is active and includes a Stop action.
+- The virtual display, encoder, HTTP server, and projection are released when the user stops the stream, Android revokes the projection, or the Cast session ends.
+- The first implementation streams video only; device/app audio is not captured.
+- The HTTP origin uses a random session token and is intended only for the local Wi-Fi/LAN connection.
+
+## Known limitations / validation still required
+
+- The initial HLS implementation has segment buffering and is not intended to match the latency of a direct HDMI connection. End-to-end latency has not yet been measured on a physical Chromecast.
+- Actual playback compatibility depends on the Chromecast model and its Default Media Receiver support for the encoded H.264/HLS stream.
+- The source changes have not yet been built or exercised on a phone/TV pair. The next validation step is a modern-flavor Android build, followed by tests at 480p/720p/1080p and Original/16:9/21:9 on the user's device.
+- If this app later targets Android 17/API 37 or higher, the LAN server path must be revisited for Android's new local-network permission requirements. The current modern flavor targets API 36.
+
+## Relevant source
+
+- `AeroScreenStreamSettings.kt`: saved preferences and output-size calculation.
+- `AeroScreenStreamService.kt`: projection consent result, foreground service, capture lifecycle, and stream-ready broadcasts.
+- `AeroVideoEncoder.kt`: H.264 MediaCodec encoder.
+- `AeroHlsSegmenter.kt` and `AeroTsMuxer.kt`: HLS segment and MPEG-TS construction.
+- `AeroHlsHttpServer.kt`: token-protected local HTTP delivery.
+- `AeroScreenStreamSettingsDialog.kt` and `AeroHomeScreen.kt`: Cast picker, permission flow, and start/stop controls.
