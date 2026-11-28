@@ -235,6 +235,17 @@ internal fun AeroHomeScreen(
                                 .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
                                 .build()
                             remoteClient.load(MediaLoadRequestData.Builder().setMediaInfo(media).build())
+                                .setResultCallback { loadResult ->
+                                    if (!loadResult.status.isSuccess) {
+                                        isScreenStreaming = false
+                                        appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
+                                        Toast.makeText(
+                                            appContext,
+                                            R.string.aero_cast_receiver_rejected,
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                }
                             isScreenStreaming = true
                             Toast.makeText(appContext, R.string.aero_cast_streaming, Toast.LENGTH_SHORT).show()
                         }
