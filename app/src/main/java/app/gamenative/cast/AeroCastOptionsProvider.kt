@@ -7,11 +7,10 @@ import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionProvider
 
 /**
- * Initial Cast sender configuration.
+ * Sender configuration for the live Game-Aero screen stream.
  *
- * This currently launches the Google Default Media Receiver so the Cast picker and
- * sender session foundation can be exercised. Aero's custom TV dashboard receiver
- * will replace this receiver ID once its Web Receiver app is registered.
+ * HLS is loaded into the Google Default Media Receiver; this is media playback,
+ * not the SDK's media-route button pretending to mirror a screen.
  */
 class AeroCastOptionsProvider : OptionsProvider {
     override fun getCastOptions(context: Context): CastOptions =
