@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.projection.MediaProjectionManager
-import android.widget.Toast
+import app.gamenative.ui.util.SnackbarManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -48,12 +48,12 @@ fun AeroCastController(showDialog: Boolean, onDismiss: () -> Unit) {
                     .putExtra(AeroScreenStreamService.EXTRA_RESULT_CODE, result.resultCode)
                     .putExtra(AeroScreenStreamService.EXTRA_PROJECTION_DATA, projectionData)
                 runCatching { ContextCompat.startForegroundService(appContext, serviceIntent) }
-                    .onFailure { Toast.makeText(appContext, it.message ?: appContext.getString(R.string.aero_cast_stream_error_generic), Toast.LENGTH_LONG).show() }
+                    .onFailure { SnackbarManager.show(it.message ?: appContext.getString(R.string.aero_cast_stream_error_generic)) }
             } else {
-                Toast.makeText(appContext, R.string.aero_cast_connect_first, Toast.LENGTH_LONG).show()
+                SnackbarManager.show(appContext.getString(R.string.aero_cast_connect_first))
             }
         } else {
-            Toast.makeText(appContext, R.string.aero_cast_permission_cancelled, Toast.LENGTH_SHORT).show()
+            SnackbarManager.show(appContext.getString(R.string.aero_cast_permission_cancelled))
         }
     }
 
@@ -76,24 +76,20 @@ fun AeroCastController(showDialog: Boolean, onDismiss: () -> Unit) {
                         }.getOrNull()
                         if (remoteClient == null) {
                             appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
-                            Toast.makeText(appContext, R.string.aero_cast_connect_first, Toast.LENGTH_LONG).show()
+                            SnackbarManager.show(appContext.getString(R.string.aero_cast_connect_first))
                         } else {
                             val media = MediaInfo.Builder(url)
                                 .setContentType("application/x-mpegURL")
                                 .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
                                 .build()
                             isScreenStreaming = true
-                            Toast.makeText(appContext, R.string.aero_cast_streaming, Toast.LENGTH_SHORT).show()
+                            SnackbarManager.show(appContext.getString(R.string.aero_cast_streaming))
                             remoteClient.load(MediaLoadRequestData.Builder().setMediaInfo(media).build())
                                 .setResultCallback { loadResult ->
                                     if (!loadResult.status.isSuccess) {
                                         isScreenStreaming = false
                                         appContext.stopService(Intent(appContext, AeroScreenStreamService::class.java))
-                                        Toast.makeText(
-                                            appContext,
-                                            R.string.aero_cast_receiver_rejected,
-                                            Toast.LENGTH_LONG,
-                                        ).show()
+                                        SnackbarManager.show(appContext.getString(R.string.aero_cast_receiver_rejected))
                                     }
                                 }
                         }
@@ -102,11 +98,11 @@ fun AeroCastController(showDialog: Boolean, onDismiss: () -> Unit) {
                         isScreenStreaming = false
                         val message = intent.getStringExtra(AeroScreenStreamService.EXTRA_ERROR_MESSAGE)
                             ?: appContext.getString(R.string.aero_cast_stream_error_generic)
-                        Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+                        SnackbarManager.show(message)
                     }
                     AeroScreenStreamService.ACTION_STREAM_NOTICE -> {
                         val message = intent.getStringExtra(AeroScreenStreamService.EXTRA_ERROR_MESSAGE) ?: return
-                        Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+                        SnackbarManager.show(message)
                     }
                     AeroScreenStreamService.ACTION_STREAM_STOPPED -> isScreenStreaming = false
                 }
@@ -148,7 +144,7 @@ fun AeroCastController(showDialog: Boolean, onDismiss: () -> Unit) {
             CastContext.getSharedInstance(appContext).sessionManager.currentCastSession?.isConnected == true
         }.getOrDefault(false)
         if (!connected) {
-            Toast.makeText(appContext, R.string.aero_cast_connect_first, Toast.LENGTH_LONG).show()
+            SnackbarManager.show(appContext.getString(R.string.aero_cast_connect_first))
         } else {
             val needsAudioPermission = AeroScreenStreamSettings.audioEnabled(appContext) &&
                 ContextCompat.checkSelfPermission(appContext, android.Manifest.permission.RECORD_AUDIO) !=

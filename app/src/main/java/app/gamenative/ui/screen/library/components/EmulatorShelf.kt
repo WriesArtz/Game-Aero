@@ -1,6 +1,6 @@
 package app.gamenative.ui.screen.library.components
 
-import android.widget.Toast
+import app.gamenative.ui.util.SnackbarManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -122,7 +122,7 @@ internal fun EmulatorTile(game: EmulatorGame, width: Dp, height: Dp, metro: Bool
                         EmulatorLauncher.Reason.NO_ENTRY -> failure
                     }
                 }
-                if (message != null) Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                if (message != null) SnackbarManager.show(message)
             }
             .border(
                 if (metro) {
